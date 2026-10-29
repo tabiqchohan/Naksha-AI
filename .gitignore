@@ -1,0 +1,7 @@
+# Environment
+backend/.env
+.env
+*.env
+# Keep example
+!backend/.env.example
+!*.env.example
