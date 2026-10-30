@@ -15,14 +15,13 @@ from app.models.user_models import User
 router = APIRouter(prefix="/plans", tags=["Floor Plans"])
 
 @router.post("/generate", response_model=FloorPlan)
-async def generate_plan(request: GeneratePlanRequest, current_user: User = Depends(check_credits), db: Session = Depends(get_db)):
+async def generate_plan(request: GeneratePlanRequest):
     """
     Generates a full 2D architectural floor plan from natural language prompt
     and plot constraints using AI / Intelligent geometric engine.
     """
     try:
         plan = await AIEngine.generate_floor_plan(request)
-        deduct_credit(current_user, db)
         return plan
     except HTTPException:
         raise
@@ -45,34 +44,28 @@ async def validate_layout(plan: FloorPlan):
     return plan
 
 @router.post("/export-pdf")
-async def export_blueprint_pdf(plan: FloorPlan, current_user: User = Depends(get_current_active_user)):
+async def export_blueprint_pdf(plan: FloorPlan):
     """Exports blueprint PDF with dimensions and bill of materials."""
     try:
-        add_watermark = current_user.plan_type.value == "free"
-        pdf_bytes = ExportService.generate_blueprint_pdf(plan, add_watermark=add_watermark)
+        pdf_bytes = ExportService.generate_blueprint_pdf(plan, add_watermark=False)
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={"Content-Disposition": f"attachment; filename=nakshai_{plan.id}.pdf"}
         )
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
 @router.post("/export-dxf")
-async def export_blueprint_dxf(plan: FloorPlan, current_user: User = Depends(get_current_active_user)):
+async def export_blueprint_dxf(plan: FloorPlan):
     """Exports CAD DXF file for AutoCAD, LibreCAD and other CAD software."""
     try:
-        add_watermark = current_user.plan_type.value == "free"
-        dxf_bytes = ExportService.generate_dxf(plan, add_watermark=add_watermark)
+        dxf_bytes = ExportService.generate_dxf(plan, add_watermark=False)
         return Response(
             content=dxf_bytes,
             media_type="application/dxf",
             headers={"Content-Disposition": f"attachment; filename=nakshai_{plan.id}.dxf"}
         )
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DXF generation failed: {str(e)}")
 

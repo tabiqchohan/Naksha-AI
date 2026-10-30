@@ -28,7 +28,10 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
 
 
 def check_credits(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    if current_user.plan_type.value == "pro" or current_user.plan_type.value == "enterprise":
+    if hasattr(current_user.plan_type, 'value'):
+        if current_user.plan_type.value in ["pro", "enterprise"]:
+            return current_user
+    elif str(current_user.plan_type) in ["pro", "enterprise"]:
         return current_user
     if current_user.credits <= 0:
         raise HTTPException(
