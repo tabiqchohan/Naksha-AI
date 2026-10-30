@@ -94,8 +94,8 @@ export default function Sidebar({
 
         {/* Plot Dimensions & Regional Presets */}
         <div>
-          <label className="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-2">
-            Plot Dimensions & Standards
+          <label className="text-[11px] font-bold tracking-wider text-slate-500 uppercase block mb-2 flex items-center gap-1.5">
+            <LayoutGrid className="w-3.5 h-3.5" /> Plot Size & Standards
           </label>
           <select
             value={selectedPreset}
@@ -107,7 +107,7 @@ export default function Sidebar({
                 onUpdatePlot(p.width, p.length);
               }
             }}
-            className="w-full text-xs font-semibold bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-2 cursor-pointer"
+            className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg p-2 text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-2 cursor-pointer shadow-sm"
           >
             {PLOT_PRESETS.map((p) => (
               <option key={p.id} value={p.id}>
@@ -118,26 +118,28 @@ export default function Sidebar({
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <span className="text-[10px] text-slate-500 font-medium">Width (ft)</span>
+              <span className="text-[10px] text-slate-500 font-medium mb-1 block">Width (ft)</span>
               <input
                 type="number"
                 value={plot.width}
                 onChange={(e) => onUpdatePlot(Number(e.target.value), plot.length)}
-                className="w-full text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-slate-800 text-center"
+                className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg p-1.5 text-slate-800 text-center focus:border-blue-500 outline-none"
               />
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 font-medium">Length (ft)</span>
+              <span className="text-[10px] text-slate-500 font-medium mb-1 block">Length (ft)</span>
               <input
                 type="number"
                 value={plot.length}
                 onChange={(e) => onUpdatePlot(plot.width, Number(e.target.value))}
-                className="w-full text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-slate-800 text-center"
+                className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg p-1.5 text-slate-800 text-center focus:border-blue-500 outline-none"
               />
             </div>
           </div>
-          <div className="mt-1.5 text-right text-[11px] font-semibold text-blue-600">
-            Total: {plot.width * plot.length} sq ft ({((plot.width * plot.length) / 225).toFixed(1)} Marla)
+          <div className="mt-2 p-2 bg-blue-50 rounded-lg text-center">
+            <div className="text-[11px] font-bold text-blue-700">
+              {plot.width * plot.length} sq ft • {((plot.width * plot.length) / 225).toFixed(1)} Marla
+            </div>
           </div>
         </div>
 
