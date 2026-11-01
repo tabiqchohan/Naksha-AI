@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import FloorPlan2DCanvas from './components/FloorPlan2DCanvas';
 import Model3DView from './components/Model3DView';
 import MaterialCostModal from './components/MaterialCostModal';
+import AuthModal from './components/AuthModal';
 import { generateFloorPlan, downloadBlueprintPdf } from './services/api';
 
 // Initial default state accurately matching the Mockup image!
@@ -91,6 +92,8 @@ export default function App() {
   const [show3D, setShow3D] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEstimatorOpen, setIsEstimatorOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const [materialEstimate, setMaterialEstimate] = useState({
     total_plot_sqft: 3000,
     covered_area_sqft: 2860,
@@ -178,7 +181,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-100 font-sans text-slate-900">
+    <div className="flex flex-col min-h-screen w-full bg-slate-100 font-sans text-slate-900">
       {/* Top Header */}
       <Header
         projectName={projectName}
@@ -191,6 +194,9 @@ export default function App() {
         setShow3D={setShow3D}
         onOpenEstimator={() => setIsEstimatorOpen(true)}
         onExportPdf={handleExportPdf}
+        user={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onLogout={() => { setUser(null); localStorage.removeItem('nakshai_token'); localStorage.removeItem('nakshai_user'); }}
       />
 
       {/* Main Workspace */}
@@ -237,6 +243,12 @@ export default function App() {
         estimate={materialEstimate}
         plot={plot}
         rooms={rooms}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onLogin={(userData) => setUser(userData)}
       />
     </div>
   );

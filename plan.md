@@ -1,15 +1,24 @@
-index-DZ6y0D6N.js:9 THREE.WebGLShadowMap: PCFSoftShadowMap has been removed. Using PCFShadowMap instead.
-
-index-DZ6y0D6N.js:4228 
- POST http://localhost:8000/api/v1/plans/generate net::ERR_CONNECTION_REFUSED
-index-DZ6y0D6N.js:4228 API call fallback: TypeError: Failed to fetch
-    at td (index-DZ6y0D6N.js:4228:86976)
-    at onGenerate (index-DZ6y0D6N.js:4228:89354)
-    at onSubmit (index-DZ6y0D6N.js:9:63604)
-    at zf (index-DZ6y0D6N.js:8:139172)
-    at index-DZ6y0D6N.js:8:143901
-    at Cn (index-DZ6y0D6N.js:8:15193)
-    at Gf (index-DZ6y0D6N.js:8:140400)
-    at yh (index-DZ6y0D6N.js:9:42635)
-    at _h (index-DZ6y0D6N.js:9:42457)
-﻿
+THREE.WebGLShadowMap: PCFSoftShadowMap has been removed. Using PCFShadowMap instead.
+H @ index-Dhl6y_SW.js:9
+index-Dhl6y_SW.js:4228  POST https://naksha-ai-usaz.onrender.com/api/v1/plans/generate 401 (Unauthorized)
+td @ index-Dhl6y_SW.js:4228
+onGenerate @ index-Dhl6y_SW.js:4228
+onSubmit @ index-Dhl6y_SW.js:9
+zf @ index-Dhl6y_SW.js:8
+(anonymous) @ index-Dhl6y_SW.js:8
+Cn @ index-Dhl6y_SW.js:8
+Gf @ index-Dhl6y_SW.js:8
+yh @ index-Dhl6y_SW.js:9
+_h @ index-Dhl6y_SW.js:9
+index-Dhl6y_SW.js:4228 API call fallback: Error: API error: 
+    at td (index-Dhl6y_SW.js:4228:87118)
+    at async onGenerate (index-Dhl6y_SW.js:4228:89362)
+onGenerate @ index-Dhl6y_SW.js:4228
+await in onGenerate
+onSubmit @ index-Dhl6y_SW.js:9
+zf @ index-Dhl6y_SW.js:8
+(anonymous) @ index-Dhl6y_SW.js:8
+Cn @ index-Dhl6y_SW.js:8
+Gf @ index-Dhl6y_SW.js:8
+yh @ index-Dhl6y_SW.js:9
+_h @ index-Dhl6y_SW.js:9
