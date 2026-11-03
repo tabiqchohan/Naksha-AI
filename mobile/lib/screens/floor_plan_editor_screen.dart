@@ -18,6 +18,7 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
   int _floors = 1;
   String _prompt = 'Generate 3 Bed, 2 Bath open layout for 50x40 plot.';
   bool _isGenerating = false;
+  bool _isMobile = true;
 
   final List<RoomModel> _rooms = [
     RoomModel(

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LayoutGrid, Layers, Home, DoorOpen, Maximize2, Settings,
   Square, Bath, Utensils, BedDouble, Armchair, Car, Plus,
-  Sliders, Trees, Warehouse, Building2, Store, Briefcase
+  Sliders, Trees, Warehouse, Building2, Store, Briefcase,
+  Wand2, Lightbulb, ArrowRight, Sparkles
 } from 'lucide-react';
 
 const PLOT_PRESETS = [
@@ -47,10 +48,67 @@ export default function Sidebar({
   floors = 1,
   setFloors
 }) {
+  const [showAdvisor, setShowAdvisor] = useState(false);
+  const [advisorLoading, setAdvisorLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+
+  const getSuggestions = async () => {
+    setAdvisorLoading(true);
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://naksha-ai-usaz.onrender.com/api/v1';
+      const res = await fetch(`${API_BASE}/plans/suggest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plot_width: plot.width, plot_length: plot.length, building_type: buildingType, floors: floors })
+      });
+      const data = await res.json();
+      setSuggestions(data.suggestions || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAdvisorLoading(false);
+    }
+  };
+
   return (
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-[calc(100vh-4rem)] select-none z-20 shadow-xs">
       {/* Scrollable Container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+        {/* AI Layout Advisor */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200">
+          <button onClick={() => { setShowAdvisor(!showAdvisor); if (!showAdvisor && suggestions.length === 0) getSuggestions(); }} className="w-full flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-bold text-slate-800">AI Layout Advisor</p>
+                <p className="text-[9px] text-slate-600">Suggest rooms for plot size</p>
+              </div>
+            </div>
+            <ArrowRight className={`w-4 h-4 text-slate-400 transition ${showAdvisor ? 'rotate-90' : ''}`} />
+          </button>
+          {showAdvisor && (
+            <div className="space-y-2">
+              <p className="text-[10px] text-slate-600">Plot: {plot.width}x{plot.length} ft • {buildingType} • {floors} Floor{floors>1?'s':''}</p>
+              <button onClick={getSuggestions} disabled={advisorLoading} className="w-full px-2 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 font-semibold">
+                {advisorLoading ? 'Analyzing...' : 'Get AI Suggestions'}
+              </button>
+              {suggestions.map((s, idx) => (
+                <div key={idx} className="bg-white rounded-lg p-2 border border-blue-100">
+                  <p className="text-[10px] font-bold text-slate-800">{s.title}</p>
+                  <p className="text-[9px] text-slate-600 mt-0.5">{s.description}</p>
+                  <div className="flex items-center gap-2 mt-1 text-[9px] text-slate-500">
+                    <span>🛏️ {s.bedrooms || 0} Bed</span>
+                    <span>🚿 {s.baths || 0} Bath</span>
+                    <span>📐 {s.coverage}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Building Type */}
         <div>
