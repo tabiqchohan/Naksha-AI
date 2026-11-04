@@ -5,6 +5,8 @@ import FloorPlan2DCanvas from './components/FloorPlan2DCanvas';
 import Model3DView from './components/Model3DView';
 import MaterialCostModal from './components/MaterialCostModal';
 import AuthModal from './components/AuthModal';
+import ProfileModal from './components/ProfileModal';
+import ProjectsModal from './components/ProjectsModal';
 import { generateFloorPlan, downloadBlueprintPdf } from './services/api';
 
 // Initial default state accurately matching the Mockup image!
@@ -93,6 +95,8 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEstimatorOpen, setIsEstimatorOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isProjectsOpen, setIsProjectsOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [materialEstimate, setMaterialEstimate] = useState({
     total_plot_sqft: 3000,
@@ -194,8 +198,10 @@ export default function App() {
         setShow3D={setShow3D}
         onOpenEstimator={() => setIsEstimatorOpen(true)}
         onExportPdf={handleExportPdf}
+        onOpenProjects={() => setIsProjectsOpen(true)}
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
         onLogout={() => { setUser(null); localStorage.removeItem('nakshai_token'); localStorage.removeItem('nakshai_user'); }}
       />
 
@@ -249,6 +255,23 @@ export default function App() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onLogin={(userData) => setUser(userData)}
+      />
+
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={user}
+      />
+
+      <ProjectsModal
+        isOpen={isProjectsOpen}
+        onClose={() => setIsProjectsOpen(false)}
+        user={user}
+        onLoadProject={(project) => {
+          if (project.floor_plan_data) {
+            console.log('Loading project:', project);
+          }
+        }}
       />
     </div>
   );

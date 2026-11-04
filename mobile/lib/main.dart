@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/floor_plan_editor_screen.dart';
+import 'login_screen.dart';
+import 'home_screen.dart';
 
 void main() {
   runApp(const NakshaAIApp());
@@ -18,7 +19,7 @@ class NakshaAIApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
-      home: const FloorPlanEditorScreen(),
+      home: const HomeScreen(),
     );
   }
 }

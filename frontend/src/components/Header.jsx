@@ -18,6 +18,8 @@ export default function Header({
   onSavePlan,
   user,
   onOpenAuth,
+  onOpenProfile,
+  onOpenProjects,
   onLogout
 }) {
   return (
@@ -126,15 +128,15 @@ export default function Header({
         </button>
         {user ? (
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg bg-blue-50 border border-blue-200">
+            <button onClick={onOpenProfile} className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 transition">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
                 <User className="w-3.5 h-3.5" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col text-left">
                 <span className="text-xs font-semibold text-slate-800">{user.username}</span>
                 <span className="text-[9px] text-blue-600 font-medium">{user.credits || 3} Credits • {user.plan_type || 'Free'}</span>
               </div>
-            </div>
+            </button>
             <button onClick={onLogout} className="text-xs text-slate-600 hover:text-red-600 px-2 py-1 hover:bg-red-50 rounded-lg transition">Logout</button>
           </div>
         ) : (

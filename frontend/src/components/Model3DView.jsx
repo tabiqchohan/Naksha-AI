@@ -216,33 +216,62 @@ export default function Model3DView({ plot, rooms, buildingType = 'house', floor
       }
     });
 
-    // Gable Roof
+    // Roof
+    if (floors >= 2) {
+      // Multi-storey with stairs landing
+      const stairGeo = new THREE.BoxGeometry(6, 0.4, 8);
+      const stairMat = new THREE.MeshStandardMaterial({ color: '#a1a1aa', roughness: 0.6 });
+      const stair = new THREE.Mesh(stairGeo, stairMat);
+      stair.position.set(plot.width - 8, 1.2 + storyHeight * 0.5, plot.length - 12);
+      stair.castShadow = true;
+      stair.receiveShadow = true;
+      scene.add(stair);
+      for (let i = 0; i < 12; i++) {
+        const stepGeo = new THREE.BoxGeometry(6, 0.2, 0.5);
+        const step = new THREE.Mesh(stepGeo, stairMat);
+        step.position.set(plot.width - 8, 1.2 + 0.1 + i * 0.8, plot.length - 16 + i * 0.5);
+        step.castShadow = true;
+        scene.add(step);
+      }
+    }
+
     if (customization.roofStyle === 'gable') {
       const roofGroup = new THREE.Group();
-      const roofHeight = 8;
+      const roofHeight = 9;
       const roofShape = new THREE.Shape();
       roofShape.moveTo(0, 0);
-      roofShape.lineTo(plot.width / 2 + 4, roofHeight);
-      roofShape.lineTo(plot.width + 8, 0);
+      roofShape.lineTo(plot.width / 2 + 5, roofHeight);
+      roofShape.lineTo(plot.width + 10, 0);
       roofShape.lineTo(0, 0);
-      const extrudeSettings = { depth: plot.length + 8, bevelEnabled: false };
+      const extrudeSettings = { depth: plot.length + 10, bevelEnabled: false };
       const roofGeo = new THREE.ExtrudeGeometry(roofShape, extrudeSettings);
-      const roofMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.7 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: '#b91c1c', roughness: 0.6 });
       const roof = new THREE.Mesh(roofGeo, roofMat);
       roof.rotation.x = Math.PI / 2;
-      roof.position.set(-4, 1.2 + wallHeight, -4);
+      roof.position.set(-5, 1.2 + wallHeight * floors, -5);
       roof.castShadow = true;
       roof.receiveShadow = true;
       roofGroup.add(roof);
       scene.add(roofGroup);
     } else if (customization.roofStyle === 'flat') {
-      const flatRoofGeo = new THREE.BoxGeometry(plot.width + 6, 0.6, plot.length + 6);
-      const flatRoofMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.8 });
+      const flatRoofGeo = new THREE.BoxGeometry(plot.width + 8, 0.8, plot.length + 8);
+      const flatRoofMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.7 });
       const flatRoof = new THREE.Mesh(flatRoofGeo, flatRoofMat);
-      flatRoof.position.set(plot.width / 2, 1.2 + wallHeight + 0.3, plot.length / 2);
+      flatRoof.position.set(plot.width / 2, 1.2 + wallHeight * floors + 0.4, plot.length / 2);
       flatRoof.castShadow = true;
       flatRoof.receiveShadow = true;
       scene.add(flatRoof);
+      // Parapet
+      const parapetTopGeo = new THREE.BoxGeometry(plot.width + 8, 1.2, 0.5);
+      const parapetTopMat = new THREE.MeshStandardMaterial({ color: customization.exteriorColor, roughness: 0.4 });
+      const pt1 = new THREE.Mesh(parapetTopGeo, parapetTopMat);
+      pt1.position.set(plot.width / 2, 1.2 + wallHeight * floors + 1.4, -4);
+      pt1.castShadow = true;
+      scene.add(pt1);
+      const pt2 = new THREE.Mesh(parapetTopGeo, parapetTopMat);
+      pt2.position.set(plot.width / 2, 1.2 + wallHeight * floors + 1.4, plot.length + 4);
+      pt2.castShadow = true;
+      scene.add(pt2);
     }
 
     // Parapet Wall
@@ -257,47 +286,87 @@ export default function Model3DView({ plot, rooms, buildingType = 'house', floor
     parapet2.castShadow = true;
     scene.add(parapet2);
 
-    // Boundary Wall
-    const boundaryGeo = new THREE.BoxGeometry(plot.width * 1.8, 3, 0.4);
+    // Boundary Wall & Entry
+    const boundaryGeo = new THREE.BoxGeometry(plot.width * 1.9, 3.2, 0.5);
     const boundaryMat = new THREE.MeshStandardMaterial({ color: '#78716c', roughness: 0.6 });
     const bw1 = new THREE.Mesh(boundaryGeo, boundaryMat);
-    bw1.position.set(plot.width / 2, 1.5, -plot.length * 0.4);
+    bw1.position.set(plot.width / 2, 1.6, -plot.length * 0.45);
     bw1.castShadow = true;
     scene.add(bw1);
-    const bw2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3, plot.length * 1.8), boundaryMat);
-    bw2.position.set(-plot.width * 0.4, 1.5, plot.length / 2);
+    const bw2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.2, plot.length * 1.9), boundaryMat);
+    bw2.position.set(-plot.width * 0.45, 1.6, plot.length / 2);
     bw2.castShadow = true;
     scene.add(bw2);
-    const bw3 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3, plot.length * 1.8), boundaryMat);
-    bw3.position.set(plot.width * 1.4, 1.5, plot.length / 2);
+    const bw3 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.2, plot.length * 1.9), boundaryMat);
+    bw3.position.set(plot.width * 1.45, 1.6, plot.length / 2);
     bw3.castShadow = true;
     scene.add(bw3);
 
     // Main Gate
-    const gateGeo = new THREE.BoxGeometry(8, 4, 0.3);
-    const gateMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.5 });
+    const gateGeo = new THREE.BoxGeometry(10, 4.5, 0.4);
+    const gateMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.5 });
     const gate = new THREE.Mesh(gateGeo, gateMat);
-    gate.position.set(plot.width / 2, 2, -plot.length * 0.4);
+    gate.position.set(plot.width / 2, 2.25, -plot.length * 0.45);
     gate.castShadow = true;
     scene.add(gate);
 
-    // Porch
-    const porchGeo = new THREE.BoxGeometry(12, 0.4, 6);
-    const porchMat = new THREE.MeshStandardMaterial({ color: '#d4d4d8', roughness: 0.4 });
-    const porch = new THREE.Mesh(porchGeo, porchMat);
-    porch.position.set(plot.width / 2, 1.3, -3);
-    porch.receiveShadow = true;
-    scene.add(porch);
-    const porchColGeo = new THREE.CylinderGeometry(0.4, 0.4, 8, 16);
-    const porchColMat = new THREE.MeshStandardMaterial({ color: '#e7e5e4' });
-    const col1 = new THREE.Mesh(porchColGeo, porchColMat);
-    col1.position.set(plot.width / 2 - 5, 5.2, -5.5);
-    col1.castShadow = true;
-    scene.add(col1);
-    const col2 = new THREE.Mesh(porchColGeo, porchColMat);
-    col2.position.set(plot.width / 2 + 5, 5.2, -5.5);
-    col2.castShadow = true;
-    scene.add(col2);
+    if (buildingType === 'house' || buildingType === 'duplex') {
+      // Porch
+      const porchGeo = new THREE.BoxGeometry(14, 0.5, 7);
+      const porchMat = new THREE.MeshStandardMaterial({ color: '#d4d4d8', roughness: 0.4 });
+      const porch = new THREE.Mesh(porchGeo, porchMat);
+      porch.position.set(plot.width / 2, 1.35, -3.5);
+      porch.receiveShadow = true;
+      scene.add(porch);
+      const porchColGeo = new THREE.CylinderGeometry(0.45, 0.45, 9, 16);
+      const porchColMat = new THREE.MeshStandardMaterial({ color: '#e7e5e4' });
+      const col1 = new THREE.Mesh(porchColGeo, porchColMat);
+      col1.position.set(plot.width / 2 - 6, 5.8, -6.5);
+      col1.castShadow = true;
+      scene.add(col1);
+      const col2 = new THREE.Mesh(porchColGeo, porchColMat);
+      col2.position.set(plot.width / 2 + 6, 5.8, -6.5);
+      col2.castShadow = true;
+      scene.add(col2);
+    } else if (buildingType === 'shop') {
+      // Shop Front Awning
+      const awningGeo = new THREE.BoxGeometry(plot.width + 4, 0.3, 4);
+      const awningMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.4 });
+      const awning = new THREE.Mesh(awningGeo, awningMat);
+      awning.position.set(plot.width / 2, 1.2 + wallHeight - 1, -2);
+      awning.castShadow = true;
+      scene.add(awning);
+      const awningPoleGeo = new THREE.CylinderGeometry(0.15, 0.15, 3, 12);
+      const awningPoleMat = new THREE.MeshStandardMaterial({ color: '#1e293b' });
+      for (let i = -3; i <= 3; i += 3) {
+        const pole = new THREE.Mesh(awningPoleGeo, awningPoleMat);
+        pole.position.set(plot.width / 2 + i * 2, 1.2 + wallHeight - 2.5, -3.8);
+        pole.castShadow = true;
+        scene.add(pole);
+      }
+    } else if (buildingType === 'plaza') {
+      // Plaza Entrance Canopy
+      const canopyGeo = new THREE.BoxGeometry(plot.width * 0.6, 0.4, 8);
+      const canopyMat = new THREE.MeshStandardMaterial({ color: '#1e40af', roughness: 0.3 });
+      const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+      canopy.position.set(plot.width / 2, 1.2 + wallHeight + 1, -4);
+      canopy.castShadow = true;
+      scene.add(canopy);
+      const glassGeo = new THREE.PlaneGeometry(plot.width * 0.5, 6);
+      const glassMat = new THREE.MeshStandardMaterial({ color: '#bfdbfe', transparent: true, opacity: 0.5 });
+      const glass = new THREE.Mesh(glassGeo, glassMat);
+      glass.rotation.x = -Math.PI / 2;
+      glass.position.set(plot.width / 2, 1.25, -7.5);
+      scene.add(glass);
+    } else if (buildingType === 'warehouse') {
+      // Loading Bay
+      const bayGeo = new THREE.BoxGeometry(12, 0.3, 10);
+      const bayMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.5 });
+      const bay = new THREE.Mesh(bayGeo, bayMat);
+      bay.position.set(plot.width / 2, 1.25, -5);
+      bay.receiveShadow = true;
+      scene.add(bay);
+    }
 
     // Animation Loop
     let animationFrameId;

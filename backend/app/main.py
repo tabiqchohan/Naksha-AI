@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import plans, auth, payments
+from app.routers import plans, auth, payments, projects
+from app.database import engine
+from app.models import user_models, project_models
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -18,9 +20,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+try:
+    user_models.Base.metadata.create_all(bind=engine)
+    project_models.Base.metadata.create_all(bind=engine)
+except Exception:
+    pass
+
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(payments.router, prefix=settings.API_V1_STR)
 app.include_router(plans.router, prefix=settings.API_V1_STR)
+app.include_router(projects.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
