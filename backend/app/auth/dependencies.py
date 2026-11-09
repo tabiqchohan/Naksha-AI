@@ -2,10 +2,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.user_models import User
+from app.models.user_models import User, plan_value
 from app.auth.auth_utils import verify_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -27,24 +28,32 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-def check_credits(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    if hasattr(current_user.plan_type, 'value'):
-        if current_user.plan_type.value in ["pro", "enterprise"]:
-            return current_user
-    elif str(current_user.plan_type) in ["pro", "enterprise"]:
+def get_optional_user(token: str = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)):
+    if not token:
+        return None
+    try:
+        username = verify_token(token, HTTPException(status_code=401, detail="Invalid token"))
+        user = db.query(User).filter(User.username == username).first()
+        return user if user and user.is_active else None
+    except Exception:
+        return None
+
+
+def check_credits(current_user: User = Depends(get_current_active_user)):
+    if plan_value(current_user.plan_type) in ["pro", "enterprise"]:
         return current_user
-    if current_user.credits <= 0:
+    if (current_user.credits or 0) <= 0:
         raise HTTPException(
             status_code=403,
-            detail="Insufficient credits. Please upgrade to Pro or purchase more credits."
+            detail="Insufficient credits. Please upgrade to Pro or purchase more credits.",
         )
     return current_user
 
 
 def deduct_credit(user: User, db: Session):
-    if user.plan_type.value == "free":
-        user.credits -= 1
-        user.total_generations += 1
+    if plan_value(user.plan_type) == "free":
+        user.credits = max(0, (user.credits or 0) - 1)
+        user.total_generations = (user.total_generations or 0) + 1
         db.commit()
         db.refresh(user)
     return user

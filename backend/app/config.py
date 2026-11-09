@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     # LLM API Keys (Free Tiers Supported)
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY", "")
     GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     # Auth
     SECRET_KEY: str = os.getenv("SECRET_KEY", "nakshai-super-secret-key-change-in-production-2026")
@@ -18,7 +20,7 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: Optional[str] = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_PUBLISHABLE_KEY: Optional[str] = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
     JAZZCASH_MERCHANT_ID: Optional[str] = os.getenv("JAZZCASH_MERCHANT_ID", "")
-    EASYPAYSA_MERCHANT_ID: Optional[str] = os.getenv("EASYPAYSA_MERCHANT_ID", "")
+    EASYPAISA_MERCHANT_ID: Optional[str] = os.getenv("EASYPAISA_MERCHANT_ID") or os.getenv("EASYPAYSA_MERCHANT_ID", "")
 
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./nakshai.db")

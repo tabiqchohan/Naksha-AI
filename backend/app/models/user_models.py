@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Enum
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 import enum
@@ -8,6 +9,10 @@ class PlanType(str, enum.Enum):
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
+
+
+def plan_value(plan_type):
+    return plan_type.value if hasattr(plan_type, "value") else str(plan_type)
 
 
 class User(Base):
@@ -26,21 +31,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-
-class Project(Base):
-    __tablename__ = "projects"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True, nullable=False)
-    title = Column(String, nullable=False)
-    plan_data = Column(String, nullable=True)  # JSON as string
-    plot_width = Column(Float)
-    plot_length = Column(Float)
-    building_type = Column(String, default="house")
-    floors = Column(Integer, default=1)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    projects = relationship("Project", back_populates="owner")
+    projects = relationship("app.models.project_models.Project", back_populates="owner", cascade="all, delete-orphan")
 
 
 class Transaction(Base):
@@ -49,9 +40,10 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True, nullable=False)
     amount_pkr = Column(Float, nullable=False)
-    amount_usd = Column(Float)
+    amount_usd = Column(Float, default=0.0)
     credits_purchased = Column(Integer, nullable=False)
-    payment_method = Column(String)  # jazzcash, easypaisa, stripe
-    transaction_id = Column(String, unique=True)
+    payment_method = Column(String)  # jazzcash, easypaisa, stripe, dev
+    transaction_id = Column(String, unique=True, index=True)
+    gateway_ref = Column(String, nullable=True)
     status = Column(String, default="pending")  # pending, completed, failed
     created_at = Column(DateTime(timezone=True), server_default=func.now())

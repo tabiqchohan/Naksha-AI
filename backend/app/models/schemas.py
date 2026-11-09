@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+﻿from pydantic import BaseModel, Field
 from typing import List, Optional, Literal, Dict, Any
 
 class FurnitureItem(BaseModel):
@@ -41,7 +41,7 @@ class Room(BaseModel):
     sqft: Optional[float] = None
     color: Optional[str] = None
     furniture: List[FurnitureItem] = []
-    floor_level: Optional[int] = 0  # 0 = Ground, 1 = First etc
+    floor_level: Optional[int] = 0
 
 class Plot(BaseModel):
     width: float = Field(..., description="Plot width in feet")
@@ -61,7 +61,35 @@ class MaterialEstimate(BaseModel):
     crush_cft: float
     estimated_cost_pkr: float
     estimated_cost_usd: float
+    rate_per_sqft_pkr: Optional[float] = None
     breakdown: Dict[str, Any]
+
+class BylawsCheck(BaseModel):
+    id: str
+    title: str
+    status: Literal["pass", "fail", "warn"]
+    detail: str
+    required: Optional[str] = None
+    actual: Optional[str] = None
+
+class BylawsReport(BaseModel):
+    pack_id: str
+    pack_name: str
+    passed: bool
+    checks: List[BylawsCheck] = []
+    notes: List[str] = []
+    disclaimer: str = "Concept check only. Verify with licensed architect/engineer and local authority before construction/submission."
+
+class VastuAdvice(BaseModel):
+    room: str
+    status: Literal["good", "caution", "avoid"]
+    advice: str
+
+class VastuReport(BaseModel):
+    score: int
+    summary: str
+    items: List[VastuAdvice] = []
+    disclaimer: str = "Advisory only. Prioritize safety, structure, bylaws, and occupant needs."
 
 class FloorPlan(BaseModel):
     id: str
@@ -73,23 +101,30 @@ class FloorPlan(BaseModel):
     windows: List[Window] = []
     material_estimate: Optional[MaterialEstimate] = None
     warnings: List[str] = []
+    bylaws_report: Optional[Dict[str, Any]] = None
+    vastu_report: Optional[Dict[str, Any]] = None
+    impact_summary: Optional[Dict[str, Any]] = None
+    version: Optional[int] = 1
+    disclaimer: Optional[str] = None
 
 class GeneratePlanRequest(BaseModel):
     prompt: Optional[str] = "Modern 3 Bed, 2 Bath open layout for 50x40 plot"
     plot_width: Optional[float] = 50.0
     plot_length: Optional[float] = 60.0
-    plot_preset: Optional[str] = "custom" # "3_marla", "5_marla", "7_marla", "10_marla", "1_kanal", "custom"
-    building_type: Optional[Literal["house", "plaza", "shop", "warehouse", "duplex"]] = "house" # Building type
+    plot_preset: Optional[str] = "custom"
+    building_type: Optional[Literal["house", "plaza", "shop", "warehouse", "duplex"]] = "house"
     bedrooms: Optional[int] = 3
     bathrooms: Optional[int] = 2
-    kitchen_type: Optional[str] = "open" # "open", "closed", "dirty_kitchen"
+    kitchen_type: Optional[str] = "open"
     floors: Optional[int] = 1
-    style: Optional[str] = "modern" # "modern", "classical", "minimalist"
-    road_facing: Optional[Literal["north", "south", "east", "west"]] = "east" # For setback calculation
-    llm_provider: Optional[str] = "auto" # "auto", "gemini", "groq", "smart_rule"
+    style: Optional[str] = "modern"
+    road_facing: Optional[Literal["north", "south", "east", "west"]] = "east"
+    llm_provider: Optional[str] = "auto"
+    bylaws_pack: Optional[str] = "pakistan_generic"
 
 class CostCalculationRequest(BaseModel):
     rooms: List[Room]
     plot_width: float
     plot_length: float
-    rate_per_sqft_pkr: Optional[float] = 3200.0 # PKR per sqft grey structure
+    rate_per_sqft_pkr: Optional[float] = 3200.0
+    bylaws_pack: Optional[str] = "pakistan_generic"

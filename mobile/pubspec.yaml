@@ -11,9 +11,10 @@ dependencies:
     sdk: flutter
   http: ^1.2.0
   cupertino_icons: ^1.0.6
-  share_plus: ^7.2.0
-  path_provider: ^2.1.0
   shared_preferences: ^2.2.2
+  webview_flutter: ^4.8.0
+  path_provider: ^2.1.6
+  open_filex: ^5.0.0
 
 dev_dependencies:
   flutter_test:

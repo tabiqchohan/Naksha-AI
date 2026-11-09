@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -18,48 +15,29 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final fullNameController = TextEditingController();
-  final String baseUrl = 'https://naksha-ai-usaz.onrender.com/api/v1';
 
   Future<void> handleAuth() async {
     setState(() => loading = true);
     try {
       if (isLogin) {
-        var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/auth/login'));
-        request.fields['username'] = usernameController.text;
-        request.fields['password'] = passwordController.text;
-        var response = await request.send();
-        var body = await response.stream.bytesToString();
-        if (response.statusCode == 200) {
-          var data = jsonDecode(body);
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('token', data['access_token']);
-          await prefs.setString('user', jsonEncode(data['user']));
-          if (mounted) Navigator.pop(context, true);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed')));
-        }
+        await ApiService.login(usernameController.text.trim(), passwordController.text);
+        if (mounted) Navigator.pop(context, true);
       } else {
-        final res = await http.post(
-          Uri.parse('$baseUrl/auth/register'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'username': usernameController.text,
-            'email': emailController.text,
-            'password': passwordController.text,
-            'full_name': fullNameController.text,
-          }),
+        await ApiService.register(
+          username: usernameController.text.trim(),
+          email: emailController.text.trim(),
+          password: passwordController.text,
+          fullName: fullNameController.text.trim(),
         );
-        if (res.statusCode == 200) {
+        if (mounted) {
           setState(() => isLogin = true);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration successful! Please login.')));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Registration failed')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration successful. Please sign in.')));
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {
-      setState(() => loading = false);
+      if (mounted) setState(() => loading = false);
     }
   }
 

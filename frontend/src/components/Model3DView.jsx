@@ -111,8 +111,6 @@ export default function Model3DView({ plot, rooms, buildingType = 'house', floor
       metalness: 0.05
     });
 
-    const trimMat = new THREE.MeshStandardMaterial({ color: '#a16207', roughness: 0.5 });
-
     const floorColors = {
       master_bedroom: '#bfdbfe',
       bedroom: '#dbeafe',

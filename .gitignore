@@ -5,3 +5,23 @@ backend/.env
 # Keep example
 !backend/.env.example
 !*.env.example
+
+# Python
+__pycache__/
+*.pyc
+
+# Build output
+frontend/dist/
+
+# Local databases
+backend/*.db
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+
+# OS
+.DS_Store
+Thumbs.db

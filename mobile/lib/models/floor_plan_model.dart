@@ -48,8 +48,8 @@ class RoomModel {
 }
 
 class PlotModel {
-  final double width;
-  final double length;
+  double width;
+  double length;
   final String unit;
 
   PlotModel({

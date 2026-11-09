@@ -68,5 +68,6 @@ class MaterialEstimator:
             crush_cft=crush_cft,
             estimated_cost_pkr=total_pkr,
             estimated_cost_usd=total_usd,
+            rate_per_sqft_pkr=rate_per_sqft,
             breakdown=breakdown
         )

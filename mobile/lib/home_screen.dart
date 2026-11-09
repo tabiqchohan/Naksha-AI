@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'floor_plan_editor_screen.dart';
+import 'screens/floor_plan_editor_screen.dart';
 import 'projects_screen.dart';
 import 'ai_advisor_screen.dart';
 import 'profile_screen.dart';
-import 'login_screen.dart';
+import 'material_estimate_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,31 +25,14 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)]),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.home_work, color: Colors.white, size: 26),
-                  ),
+                  Container(width: 48, height: 48, decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)]), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.home_work, color: Colors.white, size: 26)),
                   const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('NAKSHAI', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2)),
-                      Text('AI Floor Plan Generator', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                    ],
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
-                    icon: const Icon(Icons.person_outline),
-                    style: IconButton.styleFrom(backgroundColor: Colors.white),
-                  )
+                  const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('NAKSHAI', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2)), Text('AI Architecture SaaS (Concept)', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))])),
+                  IconButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())), icon: const Icon(Icons.person_outline), style: IconButton.styleFrom(backgroundColor: Colors.white)),
                 ],
               ),
+              const SizedBox(height: 10),
+              Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFFFFF7ED), border: Border.all(color: const Color(0xFFFED7AA)), borderRadius: BorderRadius.circular(10)), child: const Text('Concept tool only. Exports are concept drawings — verify bylaws, structure, MEP, and costs with licensed professionals before construction/submission.', style: TextStyle(fontSize: 11, color: Color(0xFF9A3412)))),
               const SizedBox(height: 32),
               const Text('Create Your Dream Home', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
               const SizedBox(height: 6),
@@ -70,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Container(
                         width: 56,
                         height: 56,
-                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
                         child: const Icon(Icons.add_home_work, color: Colors.white, size: 28),
                       ),
                       const SizedBox(width: 16),
@@ -109,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildCard(context, Icons.calculate, 'Material Estimate', 'BOQ & Cost', const Color(0xFF0891B2), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FloorPlanEditorScreen()))),
+                    child: _buildCard(context, Icons.calculate, 'Material Estimate', 'BOQ & Cost', const Color(0xFF0891B2), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MaterialEstimateScreen()))),
                   ),
                 ],
               ),
@@ -147,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
               child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(height: 10),

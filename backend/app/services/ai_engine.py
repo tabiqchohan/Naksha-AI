@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 import logging
 from typing import Dict, Any, List, Optional
@@ -19,6 +20,147 @@ PLOT_PRESETS = {
 }
 
 class AIEngine:
+    ROOM_TYPE_ALIASES = {
+        "master_bed": "master_bedroom", "master_bedroom": "master_bedroom", "master": "master_bedroom",
+        "bed": "bedroom", "bed_room": "bedroom", "bedroom": "bedroom", "kids_room": "bedroom",
+        "bath": "attached_bath", "bathroom": "attached_bath", "toilet": "attached_bath",
+        "washroom": "attached_bath", "wc": "attached_bath", "powder": "powder_room", "powder_room": "powder_room",
+        "kitchen": "kitchen", "dirty_kitchen": "dirty_kitchen", "service_kitchen": "dirty_kitchen",
+        "living": "living_room", "living_room": "living_room", "lounge": "living_room",
+        "hall": "living_room", "family_room": "living_room", "drawing": "drawing_room",
+        "drawing_room": "drawing_room", "dining": "dining_room", "dining_room": "dining_room",
+        "garage": "garage", "car_porch": "parking", "car_parking": "parking", "parking": "parking",
+        "porch": "parking", "lawn": "lawn", "garden": "lawn", "courtyard": "lawn",
+        "outdoor": "lawn", "open_area": "lawn", "ots": "ots_duct", "duct": "ots_duct",
+        "ots_duct": "ots_duct", "balcony": "balcony", "stair": "staircase", "stairs": "staircase",
+        "staircase": "staircase", "shop": "shop", "office": "office", "study": "office",
+        "home_office": "office", "corridor": "corridor", "passage": "corridor", "hallway": "corridor",
+        "ramp": "ramp", "lift": "lift_shaft", "elevator": "lift_shaft", "lift_shaft": "lift_shaft",
+        "store": "store", "storage": "store", "store_room": "store", "prayer_room": "bedroom",
+    }
+    VALID_ROOM_TYPES = {
+        "master_bedroom", "bedroom", "attached_bath", "powder_room", "kitchen", "dirty_kitchen",
+        "living_room", "drawing_room", "dining_room", "garage", "lawn", "ots_duct", "balcony",
+        "staircase", "shop", "office", "corridor", "parking", "ramp", "lift_shaft", "store",
+    }
+    WALL_ALIASES = {
+        "n": "north", "north": "north", "s": "south", "south": "south",
+        "e": "east", "east": "east", "w": "west", "west": "west",
+        "top": "north", "bottom": "south", "left": "west", "right": "east",
+    }
+
+    @classmethod
+    def _normalize_room_type(cls, raw_type: Any, name: Any = None) -> str:
+        key = re.sub(r"[^a-z0-9]+", "_", str(raw_type or "").strip().lower()).strip("_")
+        if key in cls.ROOM_TYPE_ALIASES:
+            return cls.ROOM_TYPE_ALIASES[key]
+        if key in cls.VALID_ROOM_TYPES:
+            return key
+        name_key = re.sub(r"[^a-z0-9]+", "_", str(name or "").strip().lower()).strip("_")
+        name_checks = [
+            ("powder", "powder_room"), ("bath", "attached_bath"), ("toilet", "attached_bath"),
+            ("washroom", "attached_bath"), ("wc", "attached_bath"), ("kitchen", "kitchen"),
+            ("dining", "dining_room"), ("drawing", "drawing_room"), ("living", "living_room"),
+            ("lounge", "living_room"), ("hall", "living_room"), ("stair", "staircase"),
+            ("lift", "lift_shaft"), ("elevator", "lift_shaft"), ("garage", "garage"),
+            ("parking", "parking"), ("porch", "parking"), ("ramp", "ramp"), ("lawn", "lawn"),
+            ("garden", "lawn"), ("courtyard", "lawn"), ("balcony", "balcony"), ("store", "store"),
+            ("storage", "store"), ("duct", "ots_duct"), ("shop", "shop"), ("office", "office"),
+            ("study", "office"), ("corridor", "corridor"), ("passage", "corridor"),
+            ("master", "master_bedroom"), ("bed", "bedroom"),
+        ]
+        for token, mapped in name_checks:
+            if token in name_key:
+                return mapped
+        return "living_room"
+
+    @classmethod
+    def _parse_ai_plan(cls, data: Any, plot: Plot) -> Optional[Dict[str, Any]]:
+        if isinstance(data, str):
+            text = data.strip()
+            text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+            text = re.sub(r"\s*```$", "", text)
+            try:
+                data = json.loads(text)
+            except Exception:
+                return None
+        if not isinstance(data, dict):
+            return None
+
+        rooms: List[Room] = []
+        name_map: Dict[str, str] = {}
+        for i, raw in enumerate(data.get("rooms") or []):
+            if not isinstance(raw, dict):
+                continue
+            try:
+                x = float(raw.get("x", 0))
+                y = float(raw.get("y", 0))
+                width = float(raw.get("width", 0))
+                length = float(raw.get("length", 0))
+            except (TypeError, ValueError):
+                continue
+            if width <= 0 or length <= 0:
+                continue
+            room_type = cls._normalize_room_type(raw.get("type"), raw.get("name"))
+            name = str(raw.get("name") or room_type.replace("_", " ").title()).strip()
+            if not name:
+                name = room_type.replace("_", " ").title()
+            room_data: Dict[str, Any] = {
+                "id": str(raw.get("id") or f"r{i + 1}"),
+                "name": name,
+                "type": room_type,
+                "x": max(0.0, x),
+                "y": max(0.0, y),
+                "width": width,
+                "length": length,
+            }
+            color = str(raw.get("color") or "")
+            if re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+                room_data["color"] = color
+            floor_level = raw.get("floor_level")
+            if isinstance(floor_level, (int, float)):
+                room_data["floor_level"] = int(floor_level)
+            rooms.append(Room(**room_data))
+            name_map[name.lower()] = name
+
+        if not rooms:
+            return None
+
+        def parse_openings(items: Any, kind: str) -> List[Any]:
+            parsed: List[Any] = []
+            for j, raw in enumerate(items or []):
+                if not isinstance(raw, dict):
+                    continue
+                room_name = str(raw.get("room_name") or raw.get("room") or "").strip()
+                if room_name.lower() not in name_map:
+                    continue
+                wall = cls.WALL_ALIASES.get(str(raw.get("wall") or "").strip().lower())
+                if not wall:
+                    continue
+                try:
+                    position = float(raw.get("position", 0))
+                    width = float(raw.get("width", 3.5 if kind == "door" else 4.0))
+                except (TypeError, ValueError):
+                    continue
+                if width <= 0:
+                    continue
+                base = {
+                    "id": str(raw.get("id") or f"{kind[0]}{j + 1}"),
+                    "room_name": name_map[room_name.lower()],
+                    "wall": wall,
+                    "position": max(0.0, position),
+                    "width": width,
+                }
+                parsed.append(Door(**base) if kind == "door" else Window(**base))
+            return parsed
+
+        return {
+            "title": str(data.get("title") or f"AI Floor Plan ({plot.width}x{plot.length} ft)")[:200],
+            "rooms": rooms,
+            "doors": parse_openings(data.get("doors"), "door"),
+            "windows": parse_openings(data.get("windows"), "window"),
+        }
+
     @classmethod
     async def generate_floor_plan(cls, req: GeneratePlanRequest) -> FloorPlan:
         # Determine plot dimensions
@@ -329,7 +471,7 @@ class AIEngine:
         import google.generativeai as genai
         genai.configure(api_key=settings.GEMINI_API_KEY)
         model = genai.GenerativeModel(
-            "gemini-1.5-flash",
+            settings.GEMINI_MODEL,
             generation_config={"response_mime_type": "application/json"}
         )
 
@@ -357,20 +499,10 @@ class AIEngine:
         """
 
         response = await model.generate_content_async(prompt)
-        text = response.text
-        data = json.loads(text)
-
-        # Parse rooms into Room schemas
-        parsed_rooms = [Room(**r) for r in data.get("rooms", [])]
-        parsed_doors = [Door(**d) for d in data.get("doors", [])]
-        parsed_windows = [Window(**w) for w in data.get("windows", [])]
-
-        return {
-            "title": data.get("title", f"AI Floor Plan ({plot.width}x{plot.length} ft)"),
-            "rooms": parsed_rooms,
-            "doors": parsed_doors,
-            "windows": parsed_windows
-        }
+        parsed = cls._parse_ai_plan(response.text, plot)
+        if not parsed:
+            raise ValueError("Gemini returned no usable rooms")
+        return parsed
 
     @classmethod
     async def _generate_with_groq(cls, req: GeneratePlanRequest, plot: Plot) -> Optional[Dict[str, Any]]:
@@ -395,20 +527,12 @@ class AIEngine:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            model="llama-3.1-70b-versatile",
+            model=settings.GROQ_MODEL,
             response_format={"type": "json_object"}
         )
 
         content = chat_completion.choices[0].message.content
-        data = json.loads(content)
-
-        parsed_rooms = [Room(**r) for r in data.get("rooms", [])]
-        parsed_doors = [Door(**d) for d in data.get("doors", [])]
-        parsed_windows = [Window(**w) for w in data.get("windows", [])]
-
-        return {
-            "title": data.get("title", f"AI Generated Plan ({plot.width}x{plot.length} ft)"),
-            "rooms": parsed_rooms,
-            "doors": parsed_doors,
-            "windows": parsed_windows
-        }
+        parsed = cls._parse_ai_plan(content, plot)
+        if not parsed:
+            raise ValueError("Groq returned no usable rooms")
+        return parsed
