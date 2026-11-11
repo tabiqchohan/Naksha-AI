@@ -1,5 +1,6 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from app.config import settings
 from app.database import get_db
 from app.models.user_models import User, Transaction, plan_value
 from app.models.auth_schemas import PurchaseCredits, PaymentResponse
@@ -70,7 +71,7 @@ def purchase_credits(req: PurchaseCredits, current_user: User = Depends(get_curr
     db.commit()
     db.refresh(transaction)
 
-    frontend_base = os.getenv("FRONTEND_URL", "https://naksha-ai.vercel.app")
+    frontend_base = settings.FRONTEND_URL.rstrip("/")
     if req.payment_method == "jazzcash":
         payment_url = os.getenv("JAZZCASH_CHECKOUT_URL")
         return PaymentResponse(success=True, message="JazzCash payment initiated. Complete payment in JazzCash; use Verify/confirm after gateway callback setup.", transaction_id=txn_id, payment_url=payment_url or f"{frontend_base}/?payment=pending&txn={txn_id}&method=jazzcash")

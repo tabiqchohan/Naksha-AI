@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/floor_plan_model.dart';
 import '../widgets/floor_plan_painter.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../login_screen.dart';
 import '../material_estimate_screen.dart';
 import 'viewer3d_screen.dart';
@@ -86,17 +87,19 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
   }
 
   Future<bool> _ensureAuth() async {
+    final lang = LanguageScope.of(context);
     final token = await ApiService.token();
     if (token != null && token.isNotEmpty) return true;
     if (!mounted) return false;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in to generate/save plans (credits required).')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(lang.t('Please sign in to generate/save plans (credits required).', 'پلان بنانے/محفوظ کرنے کے لیے سائن ان کریں (کریڈٹس درکار ہیں)۔'))));
     await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
     return (await ApiService.token()) != null;
   }
 
   Future<void> _generatePlan({bool variants = false}) async {
+    final lang = LanguageScope.of(context);
     if (!await _ensureAuth()) return;
-    setState(() { _isGenerating = true; _status = variants ? 'Generating 3 variants...' : 'Generating plan...'; });
+    setState(() { _isGenerating = true; _status = variants ? lang.t('Generating 3 variants...', '3 ورژن بنائے جا رہے ہیں...') : lang.t('Generating plan...', 'پلان بنایا جا رہا ہے...'); });
     try {
       final base = {
         'prompt': _prompt,
@@ -113,15 +116,15 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
         final list = (data['variants'] as List?) ?? [];
         _variants..clear()..addAll(list.map((e) => Map<String, dynamic>.from(e as Map)));
         if (_variants.isNotEmpty) _applyPlan(_variants.first);
-        _status = 'Generated ${_variants.length} variants (concept).';
+        _status = lang.t('Generated ${_variants.length} variants (concept).', '${_variants.length} تصوراتی ورژن بن گئے۔');
       } else {
         final data = await ApiService.post('/plans/generate', base, auth: true);
         _applyPlan(Map<String, dynamic>.from(data as Map));
-        _status = 'Plan generated.';
+        _status = lang.t('Plan generated.', 'پلان بن گیا۔');
       }
     } catch (e) {
       _status = e.toString();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${lang.t('Error', 'خرابی')}: $e')));
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
@@ -143,6 +146,7 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
   };
 
   Future<void> _exportPlan(String kind) async {
+    final lang = LanguageScope.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
       final bytes = await ApiService.postBytes('/plans/export-$kind', _currentPlanMap(), auth: true);
@@ -150,13 +154,14 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
       final file = File('${dir.path}${Platform.pathSeparator}nakshai_${DateTime.now().millisecondsSinceEpoch}.$kind');
       await file.writeAsBytes(bytes, flush: true);
       await OpenFilex.open(file.path);
-      if (mounted) messenger.showSnackBar(SnackBar(content: Text('Saved ${file.path}')));
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text('${lang.t('Saved', 'محفوظ ہو گیا')}: ${file.path}')));
     } catch (e) {
-      if (mounted) messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text('${lang.t('Export failed', 'ایکسپورٹ ناکام')}: $e')));
     }
   }
 
   Future<void> _saveProject() async {
+    final lang = LanguageScope.of(context);
     if (!await _ensureAuth()) return;
     try {
       await ApiService.post('/projects/save', {
@@ -168,29 +173,30 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
         'prompt': _prompt,
         'floor_plan_data': {'plot': {'width': _plot.width, 'length': _plot.length}, 'rooms': _rooms.map((r) => {'id': r.id, 'name': r.name, 'type': r.type, 'x': r.x, 'y': r.y, 'width': r.width, 'length': r.length}).toList(), 'bylaws_report': _bylawsReport},
       }, auth: true);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Project saved.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(lang.t('Project saved.', 'منصوبہ محفوظ ہو گیا۔'))));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${lang.t('Save failed', 'محفوظ کرنا ناکام')}: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = LanguageScope.of(context);
     final bylawsPass = _bylawsReport?['passed'] == true;
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0284C7),
-        title: const Text('NAKSHAI - Floor Plan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(lang.t('NAKSHAI - Floor Plan', 'نقشہ اے آئی - فلور پلان'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
         actions: [
           Container(margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)), child: Row(children: [_buildViewToggle('2D', 0), _buildViewToggle('3D', 1)])),
           PopupMenuButton<String>(
-            tooltip: 'Export concept drawing',
+            tooltip: lang.t('Export concept drawing', 'تصوراتی نقشہ ایکسپورٹ کریں'),
             icon: const Icon(Icons.download, color: Colors.white, size: 18),
             onSelected: _exportPlan,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'pdf', child: Text('Export PDF')),
-              PopupMenuItem(value: 'dxf', child: Text('Export DXF')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'pdf', child: Text(lang.t('Export PDF', 'پی ڈی ایف ایکسپورٹ'))),
+              PopupMenuItem(value: 'dxf', child: Text(lang.t('Export DXF', 'ڈی ایکس ایف ایکسپورٹ'))),
             ],
           ),
           IconButton(icon: const Icon(Icons.save, color: Colors.white, size: 18), onPressed: _saveProject),
@@ -202,37 +208,38 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
           Expanded(child: Container(margin: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))), child: Center(child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.view_in_ar, size: 56, color: Color(0xFF0284C7)),
             const SizedBox(height: 12),
-            const Text('3D Viewer (Beta)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(lang.t('3D Viewer (Beta)', 'تھری ڈی ویور (بیٹا)'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            const Text('Opens an isometric concept preview generated from the current rooms. Full web 3D walkthrough parity can be enabled by configuring a viewer URL.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFF475569))),
+            Text(lang.t('Open an interactive isometric concept preview. Rotate, pan, zoom, and switch floors inside the viewer.', 'انٹرایکٹو آئیسومیٹرک تصوراتی پیش نظارہ کھولیں۔ ویور میں گھمائیں، پین کریں، زوم کریں اور منزلیں تبدیل کریں۔'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
             const SizedBox(height: 16),
-            ElevatedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Viewer3DScreen(plan: _currentPlanMap()))), icon: const Icon(Icons.open_in_new), label: const Text('Open 3D Viewer')),
+            ElevatedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Viewer3DScreen(plan: _currentPlanMap()))), icon: const Icon(Icons.open_in_new), label: Text(lang.t('Open 3D Viewer', 'تھری ڈی ویور کھولیں'))),
           ])))))
         else Expanded(child: Row(children: [
           Container(width: 56, color: Colors.white, child: Column(children: [
-            IconButton(icon: const Icon(Icons.auto_awesome, color: Colors.purple, size: 22), tooltip: 'AI Generate', onPressed: _isGenerating ? null : () => _showAIGenerateDialog()),
-            IconButton(icon: const Icon(Icons.view_module, color: Colors.blue, size: 22), tooltip: '3 Variants', onPressed: _isGenerating ? null : () => _generatePlan(variants: true)),
-            IconButton(icon: const Icon(Icons.home_work, color: Colors.grey, size: 22), tooltip: 'Building Type', onPressed: _showBuildingTypeDialog),
-            IconButton(icon: const Icon(Icons.stairs, color: Colors.grey, size: 22), tooltip: 'Floors', onPressed: _showFloorsDialog),
-            IconButton(icon: const Icon(Icons.gavel, color: Colors.grey, size: 22), tooltip: 'Bylaws Pack', onPressed: _showBylawsDialog),
-            IconButton(icon: const Icon(Icons.calculate, color: Colors.teal, size: 22), tooltip: 'Material Estimate (Concept)', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MaterialEstimateScreen(estimate: _materialEstimate)))),
+            IconButton(icon: const Icon(Icons.auto_awesome, color: Colors.purple, size: 22), tooltip: lang.t('AI Generate', 'اے آئی جنریٹ'), onPressed: _isGenerating ? null : () => _showAIGenerateDialog()),
+            IconButton(icon: const Icon(Icons.view_module, color: Colors.blue, size: 22), tooltip: lang.t('3 Variants', '3 ورژن'), onPressed: _isGenerating ? null : () => _generatePlan(variants: true)),
+            IconButton(icon: const Icon(Icons.home_work, color: Colors.grey, size: 22), tooltip: lang.t('Building Type', 'عمارت کی قسم'), onPressed: _showBuildingTypeDialog),
+            IconButton(icon: const Icon(Icons.stairs, color: Colors.grey, size: 22), tooltip: lang.t('Floors', 'منزلیں'), onPressed: _showFloorsDialog),
+            IconButton(icon: const Icon(Icons.gavel, color: Colors.grey, size: 22), tooltip: lang.t('Bylaws Pack', 'بلدیاتی پیک'), onPressed: _showBylawsDialog),
+            IconButton(icon: const Icon(Icons.calculate, color: Colors.teal, size: 22), tooltip: lang.t('Material Estimate (Concept)', 'میٹیریل تخمینہ (تصور)'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MaterialEstimateScreen(estimate: _materialEstimate)))),
             if (_isGenerating) const Padding(padding: EdgeInsets.all(8), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
             const Spacer(),
             if (_bylawsReport != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Icon(bylawsPass ? Icons.verified : Icons.warning_amber, color: bylawsPass ? Colors.green : Colors.orange, size: 20)),
           ])),
           Expanded(child: InteractiveViewer(minScale: 0.5, maxScale: 3.0, boundaryMargin: const EdgeInsets.all(50), child: Center(child: Container(width: 500, height: 600, margin: const EdgeInsets.all(16), child: CustomPaint(painter: FloorPlanPainter(plot: _plot, rooms: _rooms)))))),
-          if (_variants.isNotEmpty) SizedBox(width: 170, child: Container(color: Colors.white, child: ListView(padding: const EdgeInsets.all(8), children: [const Text('Variants', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), const SizedBox(height: 6), ..._variants.asMap().entries.map((e) => InkWell(onTap: ()=>setState(()=>_applyPlan(e.value)), child: Container(margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(8), decoration: BoxDecoration(border: Border.all(color: const Color(0xFFE2E8F0)), borderRadius: BorderRadius.circular(8)), child: Text(e.value['title']?.toString() ?? 'Option ${String.fromCharCode(65+e.key)}', style: const TextStyle(fontSize: 11)))))])))
+          if (_variants.isNotEmpty) SizedBox(width: 170, child: Container(color: Colors.white, child: ListView(padding: const EdgeInsets.all(8), children: [Text(lang.t('Variants', 'ورژن'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), const SizedBox(height: 6), ..._variants.asMap().entries.map((e) => InkWell(onTap: ()=>setState(()=>_applyPlan(e.value)), child: Container(margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(8), decoration: BoxDecoration(border: Border.all(color: const Color(0xFFE2E8F0)), borderRadius: BorderRadius.circular(8)), child: Text(e.value['title']?.toString() ?? '${lang.t('Option', 'آپشن')} ${String.fromCharCode(65+e.key)}', style: const TextStyle(fontSize: 11)))))])))
         ])),
       ]),
     );
   }
 
   void _showAIGenerateDialog() {
+    final lang = LanguageScope.of(context);
     final c = TextEditingController(text: _prompt);
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('AI Generate Floor Plan'), content: TextField(controller: c, maxLines: 3, decoration: const InputDecoration(labelText: 'Requirement', border: OutlineInputBorder())), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text('Cancel')), ElevatedButton(onPressed: (){ _prompt=c.text; Navigator.pop(context); _generatePlan(); }, child: const Text('Generate'))]));
+    showDialog(context: context, builder: (context) => AlertDialog(title: Text(lang.t('AI Generate Floor Plan', 'اے آئی سے فلور پلان بنائیں')), content: TextField(controller: c, maxLines: 3, decoration: InputDecoration(labelText: lang.t('Requirement', 'ضرورت'), border: const OutlineInputBorder())), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: Text(lang.t('Cancel', 'منسوخ'))), ElevatedButton(onPressed: (){ _prompt=c.text; Navigator.pop(context); _generatePlan(); }, child: Text(lang.t('Generate', 'بنائیں')))]));
   }
-  void _showBuildingTypeDialog() { showDialog(context: context, builder: (context) => SimpleDialog(title: const Text('Building Type'), children: ['house','plaza','shop','warehouse','duplex'].map((t)=>SimpleDialogOption(onPressed: (){ setState(()=>_buildingType=t); Navigator.pop(context); }, child: Text(t))).toList())); }
-  void _showFloorsDialog() { showDialog(context: context, builder: (context) => SimpleDialog(title: const Text('Floors'), children: [1,2,3].map((f)=>SimpleDialogOption(onPressed: (){ setState(()=>_floors=f); Navigator.pop(context); }, child: Text(f==1?'Ground':'G+${f-1}'))).toList())); }
-  void _showBylawsDialog() { showDialog(context: context, builder: (context) => SimpleDialog(title: const Text('Bylaws Pack (Concept)'), children: ['pakistan_generic','dha_lahore','lda_lahore','cda_islamabad','sbca_karachi'].map((p)=>SimpleDialogOption(onPressed: (){ setState(()=>_bylawsPack=p); Navigator.pop(context); }, child: Text(p))).toList())); }
+  void _showBuildingTypeDialog() { final lang = LanguageScope.of(context); showDialog(context: context, builder: (context) => SimpleDialog(title: Text(lang.t('Building Type', 'عمارت کی قسم')), children: ['house','plaza','shop','warehouse','duplex'].map((t)=>SimpleDialogOption(onPressed: (){ setState(()=>_buildingType=t); Navigator.pop(context); }, child: Text(t))).toList())); }
+  void _showFloorsDialog() { final lang = LanguageScope.of(context); showDialog(context: context, builder: (context) => SimpleDialog(title: Text(lang.t('Floors', 'منزلیں')), children: [1,2,3].map((f)=>SimpleDialogOption(onPressed: (){ setState(()=>_floors=f); Navigator.pop(context); }, child: Text(f==1?lang.t('Ground', 'گراؤنڈ'):'G+${f-1}'))).toList())); }
+  void _showBylawsDialog() { final lang = LanguageScope.of(context); showDialog(context: context, builder: (context) => SimpleDialog(title: Text(lang.t('Bylaws Pack (Concept)', 'بلدیاتی پیک (تصور)')), children: ['pakistan_generic','dha_lahore','lda_lahore','cda_islamabad','sbca_karachi'].map((p)=>SimpleDialogOption(onPressed: (){ setState(()=>_bylawsPack=p); Navigator.pop(context); }, child: Text(p))).toList())); }
   Widget _buildViewToggle(String label, int index) { final isSelected = _selectedViewIndex == index; return GestureDetector(onTap: ()=>setState(()=>_selectedViewIndex=index), child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: isSelected ? Colors.white : Colors.transparent, borderRadius: BorderRadius.circular(6)), child: Text(label, style: TextStyle(color: isSelected ? const Color(0xFF0284C7):Colors.white, fontWeight: FontWeight.bold, fontSize: 11)))); }
 }

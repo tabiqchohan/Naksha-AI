@@ -1,16 +1,35 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
 
 
+def _validate_password(value: str) -> str:
+    if len(value or "") < 8:
+        raise ValueError("Password must be at least 8 characters")
+    return value
+
+
 class UserBase(BaseModel):
-    email: str
+    email: EmailStr
     username: str
     full_name: Optional[str] = None
 
 
 class UserCreate(UserBase):
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, value: str) -> str:
+        return _validate_password(value)
+
+    @field_validator("username")
+    @classmethod
+    def check_username(cls, value: str) -> str:
+        cleaned = (value or "").strip()
+        if len(cleaned) < 3:
+            raise ValueError("Username must be at least 3 characters")
+        return cleaned
 
 
 class UserLogin(BaseModel):
@@ -24,10 +43,38 @@ class UserResponse(UserBase):
     credits: int
     total_generations: int
     is_active: bool
+    is_verified: bool = False
     created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class RegisterResponse(UserResponse):
+    verification_token: Optional[str] = None
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def check_password(cls, value: str) -> str:
+        return _validate_password(value)
+
+
+class EmailVerificationConfirm(BaseModel):
+    token: str
+
+
+class MessageResponse(BaseModel):
+    message: str
+    token: Optional[str] = None
 
 
 class Token(BaseModel):

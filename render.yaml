@@ -1,0 +1,65 @@
+services:
+  - type: web
+    name: naksha-ai-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: DEFAULT_RATE_PKR_PER_SQFT
+        value: "3500"
+      - key: PKR_TO_USD_RATE
+        value: "278"
+      - key: RATE_LIMIT_AUTH_PER_MINUTE
+        value: "30"
+      - key: ALLOW_MANUAL_PAYMENT_VERIFY
+        value: "false"
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: JAZZCASH_MERCHANT_ID
+        sync: false
+      - key: JAZZCASH_HASH_KEY
+        sync: false
+      - key: EASYPAISA_MERCHANT_ID
+        sync: false
+      - key: EASYPAISA_HASH_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: EMAIL_FROM
+        value: no-reply@nakshai.app
+      - key: AUTH_DEBUG_TOKENS
+        value: "false"

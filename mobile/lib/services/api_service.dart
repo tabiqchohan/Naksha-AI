@@ -3,7 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://naksha-ai-usaz.onrender.com/api/v1';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://naksha-ai-usaz.onrender.com/api/v1',
+  );
 
   static Future<String?> token() async {
     final prefs = await SharedPreferences.getInstance();
@@ -38,13 +41,29 @@ class ApiService {
     return map;
   }
 
-  static Future<void> register({required String username, required String email, required String password, String? fullName}) async {
-    await post('/auth/register', {
+  static Future<dynamic> register({required String username, required String email, required String password, String? fullName}) async {
+    return post('/auth/register', {
       'username': username,
       'email': email,
       'password': password,
       'full_name': fullName ?? username,
     });
+  }
+
+  static Future<dynamic> requestPasswordReset(String email) {
+    return post('/auth/password-reset/request', {'email': email});
+  }
+
+  static Future<dynamic> confirmPasswordReset(String resetToken, String newPassword) {
+    return post('/auth/password-reset/confirm', {'token': resetToken, 'new_password': newPassword});
+  }
+
+  static Future<dynamic> requestEmailVerification() {
+    return post('/auth/email-verification/request', {}, auth: true);
+  }
+
+  static Future<dynamic> confirmEmailVerification(String verificationToken) {
+    return post('/auth/email-verification/confirm', {'token': verificationToken});
   }
 
   static Future<Map<String, String>> headers({bool json = true, bool auth = false}) async {

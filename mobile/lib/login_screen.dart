@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'services/language_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final fullNameController = TextEditingController();
 
   Future<void> handleAuth() async {
+    final lang = LanguageScope.of(context);
     setState(() => loading = true);
     try {
       if (isLogin) {
@@ -31,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         if (mounted) {
           setState(() => isLogin = true);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration successful. Please sign in.')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(lang.t('Registration successful. Please sign in.', 'رجسٹریشن کامیاب۔ براہ کرم سائن ان کریں۔'))));
         }
       }
     } catch (e) {
@@ -41,14 +43,81 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final lang = LanguageScope.of(context);
+    final controller = TextEditingController(text: emailController.text.trim());
+    final email = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(lang.t('Reset password', 'پاس ورڈ ری سیٹ کریں')),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(labelText: lang.t('Email', 'ای میل'), border: const OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(lang.t('Cancel', 'منسوخ'))),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: Text(lang.t('Send', 'بھیجیں'))),
+        ],
+      ),
+    );
+    if (email == null || email.isEmpty || !mounted) return;
+
+    try {
+      final data = await ApiService.requestPasswordReset(email);
+      if (!mounted) return;
+      final token = data is Map ? data['token']?.toString() : null;
+      if (token != null && token.isNotEmpty) {
+        await _showResetConfirmDialog(token);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(lang.t(
+          'If this email is registered, a reset link has been sent.',
+          'اگر یہ ای میل رجسٹرڈ ہے تو ری سیٹ لنک بھیج دیا گیا ہے۔',
+        ))));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> _showResetConfirmDialog(String token) async {
+    final lang = LanguageScope.of(context);
+    final controller = TextEditingController();
+    final newPassword = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(lang.t('New password', 'نیا پاس ورڈ')),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: InputDecoration(labelText: lang.t('New password (8+ characters)', 'نیا پاس ورڈ (8 یا زیادہ حروف)'), border: const OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(lang.t('Cancel', 'منسوخ'))),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, controller.text), child: Text(lang.t('Save', 'محفوظ کریں'))),
+        ],
+      ),
+    );
+    if (newPassword == null || newPassword.isEmpty || !mounted) return;
+    try {
+      await ApiService.confirmPasswordReset(token, newPassword);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(lang.t('Password updated. Please sign in.', 'پاس ورڈ تبدیل ہو گیا۔ براہ کرم سائن ان کریں۔'))));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final lang = LanguageScope.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Account', style: TextStyle(color: Color(0xFF0F172A))),
+        title: Text(lang.t('Account', 'اکاؤنٹ'), style: const TextStyle(color: Color(0xFF0F172A))),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -67,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 16),
             const Text('NAKSHAI', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 3)),
             const SizedBox(height: 6),
-            Text(isLogin ? 'Sign in to continue' : 'Create your account', style: const TextStyle(color: Color(0xFF64748B))),
+            Text(isLogin ? lang.t('Sign in to continue', 'جاری رکھنے کے لیے سائن ان کریں') : lang.t('Create your account', 'اپنا اکاؤنٹ بنائیں'), style: const TextStyle(color: Color(0xFF64748B))),
             const SizedBox(height: 32),
             Container(
               padding: const EdgeInsets.all(24),
@@ -83,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: fullNameController,
                       decoration: InputDecoration(
-                        labelText: 'Full Name',
+                        labelText: lang.t('Full Name', 'پورا نام'),
                         prefixIcon: const Icon(Icons.person_outline),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -91,8 +160,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     TextField(
                       controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        labelText: 'Email',
+                        labelText: lang.t('Email', 'ای میل'),
                         prefixIcon: const Icon(Icons.email_outlined),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -102,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: usernameController,
                     decoration: InputDecoration(
-                      labelText: 'Username',
+                      labelText: lang.t('Username or Email', 'صارف نام یا ای میل'),
                       prefixIcon: const Icon(Icons.account_circle_outlined),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -112,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: passwordController,
                     obscureText: obscurePassword,
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: lang.t('Password', 'پاس ورڈ'),
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
@@ -121,7 +191,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  if (isLogin) Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: loading ? null : _showForgotPasswordDialog,
+                      child: Text(lang.t('Forgot password?', 'پاس ورڈ بھول گئے؟')),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -133,20 +210,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: loading
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(isLogin ? 'Sign In' : 'Create Account', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          : Text(isLogin ? lang.t('Sign In', 'سائن ان') : lang.t('Create Account', 'اکاؤنٹ بنائیں'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: () => setState(() => isLogin = !isLogin),
-                    child: Text(isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"),
+                    child: Text(isLogin
+                        ? lang.t("Don't have an account? Sign Up", 'اکاؤنٹ نہیں ہے؟ سائن اپ کریں')
+                        : lang.t('Already have an account? Sign In', 'پہلے سے اکاؤنٹ ہے؟ سائن ان کریں')),
                   )
                 ],
               ),
             ),
             if (!isLogin) ...[
               const SizedBox(height: 16),
-              const Text('🎉 Get 3 free credits on registration!', style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.w600)),
+              Text(lang.t('Get 3 free credits on registration!', 'رجسٹریشن پر 3 مفت کریڈٹس حاصل کریں!'), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.w600)),
             ]
           ],
         ),

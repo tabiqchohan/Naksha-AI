@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "NakshaAI Core API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://naksha-ai.vercel.app")
+    BACKEND_CORS_ORIGINS: str = os.getenv("BACKEND_CORS_ORIGINS", "")
+    RATE_LIMIT_AUTH_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_AUTH_PER_MINUTE", "30"))
 
     # LLM API Keys (Free Tiers Supported)
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY", "")
@@ -28,6 +32,19 @@ class Settings(BaseSettings):
     # Defaults
     DEFAULT_RATE_PKR_PER_SQFT: float = 3200.0  # Current standard grey structure rate
     PKR_TO_USD_RATE: float = 278.0
+
+    @property
+    def cors_origins(self) -> list[str]:
+        raw = (self.BACKEND_CORS_ORIGINS or "").strip()
+        if raw:
+            return [origin.strip() for origin in raw.split(",") if origin.strip()]
+        if self.ENVIRONMENT.lower() == "production":
+            return [self.FRONTEND_URL.rstrip("/")]
+        return ["*"]
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() == "production"
 
     class Config:
         env_file = ".env"

@@ -2,9 +2,12 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
-import os
+import hashlib
+import hmac
+import secrets
+from app.config import settings
 
-SECRET_KEY = os.getenv("SECRET_KEY", "nakshai-super-secret-key-change-in-production-2026")
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
@@ -21,6 +24,20 @@ def verify_password(plain_password, hashed_password):
 
 def get_password_hash(password):
     return bcrypt.hashpw(_secret_bytes(password), bcrypt.gensalt()).decode("utf-8")
+
+
+def generate_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+
+def token_matches(raw_token: str, stored_hash: Optional[str]) -> bool:
+    if not raw_token or not stored_hash:
+        return False
+    return hmac.compare_digest(hash_token(raw_token), stored_hash)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

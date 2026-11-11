@@ -54,6 +54,22 @@ export async function getMe() {
   return apiFetch('/auth/me', {}, true);
 }
 
+export async function requestPasswordReset(email) {
+  return apiFetch('/auth/password-reset/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+}
+
+export async function confirmPasswordReset(token, new_password) {
+  return apiFetch('/auth/password-reset/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, new_password }) });
+}
+
+export async function requestEmailVerification() {
+  return apiFetch('/auth/email-verification/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }, true);
+}
+
+export async function confirmEmailVerification(token) {
+  return apiFetch('/auth/email-verification/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+}
+
 export async function getPricing() {
   return apiFetch('/payments/pricing');
 }

@@ -13,7 +13,11 @@ export default function ProjectsModal({ isOpen, onClose, onLoadProject, user, li
     try { setProjects(await (listProjects || apiListProjects)()); } catch (e) { console.error(e); } finally { setLoading(false); }
   }, [listProjects]);
 
-  useEffect(() => { if (isOpen && user) fetchProjects(); }, [isOpen, user, fetchProjects]);
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    const timer = setTimeout(fetchProjects, 0);
+    return () => clearTimeout(timer);
+  }, [isOpen, user, fetchProjects]);
   const deleteProject = async (projectId) => {
     if (!confirm('Delete this project?')) return;
     try { await (apiDeleteProject)(projectId); fetchProjects(); } catch (e) { alert(e.message); }

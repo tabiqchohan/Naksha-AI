@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'services/language_service.dart';
 import 'login_screen.dart';
 import 'buy_credits_screen.dart';
 
@@ -12,16 +13,34 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? user;
   bool loading = true;
+  int projectCount = 0;
 
   @override
-  void initState() { super.initState(); loadUser(); }
+  void initState() {
+    super.initState();
+    loadUser();
+  }
 
   Future<void> loadUser() async {
     var u = await ApiService.getUser();
+    var count = 0;
     if (await ApiService.isLoggedIn()) {
-      try { final fresh = await ApiService.getMe(); if (fresh is Map<String, dynamic>) u = fresh; } catch (_) {}
+      try {
+        final fresh = await ApiService.getMe();
+        if (fresh is Map<String, dynamic>) u = fresh;
+      } catch (_) {}
+      try {
+        final projects = await ApiService.get('/projects/list', auth: true);
+        if (projects is List) count = projects.length;
+      } catch (_) {}
     }
-    if (mounted) setState(() { user = u; loading = false; });
+    if (mounted) {
+      setState(() {
+        user = u;
+        projectCount = count;
+        loading = false;
+      });
+    }
   }
 
   Future<void> logout() async {
@@ -29,14 +48,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) Navigator.pop(context, true);
   }
 
+  Future<void> _verifyEmail() async {
+    final lang = LanguageScope.of(context);
+    try {
+      final data = await ApiService.requestEmailVerification();
+      if (!mounted) return;
+      final token = data is Map ? data['token']?.toString() : null;
+      if (token != null && token.isNotEmpty) {
+        await ApiService.confirmEmailVerification(token);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(lang.t('Email verified.', 'ای میل تصدیق شد۔'))));
+        await loadUser();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(lang.t('Verification email sent.', 'تصدیقی ای میل بھیج دی گئی۔'))));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final lang = LanguageScope.of(context);
+    final isVerified = user?['is_verified'] == true;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Profile', style: TextStyle(color: Color(0xFF0F172A))),
+        title: Text(lang.t('Profile', 'پروفائل'), style: const TextStyle(color: Color(0xFF0F172A))),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -47,9 +87,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       const Icon(Icons.person_outline, size: 64, color: Color(0xFFCBD5E1)),
                       const SizedBox(height: 16),
-                      const Text('Not Signed In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(lang.t('Not Signed In', 'سائن ان نہیں ہیں'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      const Text('Sign in to access your profile', style: TextStyle(color: Color(0xFF64748B))),
+                      Text(lang.t('Sign in to access your profile', 'پروفائل دیکھنے کے لیے سائن ان کریں'), style: const TextStyle(color: Color(0xFF64748B))),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
                         onPressed: () async {
@@ -57,7 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (result == true) loadUser();
                         },
                         icon: const Icon(Icons.login),
-                        label: const Text('Sign In / Sign Up'),
+                        label: Text(lang.t('Sign In / Sign Up', 'سائن ان / سائن اپ')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2563EB),
                           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
@@ -88,11 +128,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const SizedBox(height: 12),
                             Text(user!['full_name'] ?? user!['username'], style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                             Text('@${user!['username']}', style: const TextStyle(color: Colors.white70)),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(isVerified ? Icons.verified : Icons.info_outline, color: Colors.white70, size: 14),
+                                const SizedBox(width: 4),
+                                Text(isVerified ? lang.t('Email verified', 'ای میل تصدیق شدہ') : lang.t('Email not verified', 'ای میل غیر تصدیق شدہ'), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                              ],
+                            ),
                             const SizedBox(height: 12),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
-                              child: Text('${user!['plan_type']?.toString().toUpperCase() ?? 'FREE'} PLAN', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                              child: Text('${user!['plan_type']?.toString().toUpperCase() ?? 'FREE'} ${lang.t('PLAN', 'پلان')}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                             )
                           ],
                         ),
@@ -100,9 +149,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildStatCard('Credits', '${user!['credits'] ?? 3}', Icons.bolt, const Color(0xFF2563EB))),
+                          Expanded(child: _buildStatCard(lang.t('Credits', 'کریڈٹس'), '${user!['credits'] ?? 3}', Icons.bolt, const Color(0xFF2563EB))),
                           const SizedBox(width: 12),
-                          Expanded(child: _buildStatCard('Projects', '0', Icons.folder_open, const Color(0xFF059669))),
+                          Expanded(child: _buildStatCard(lang.t('Projects', 'منصوبے'), '$projectCount', Icons.folder_open, const Color(0xFF059669))),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -113,21 +162,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Account Info', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(lang.t('Account Info', 'اکاؤنٹ کی معلومات'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 12),
-                            _buildInfoRow(Icons.email_outlined, 'Email', user!['email'] ?? 'N/A'),
-                            _buildInfoRow(Icons.account_circle_outlined, 'Username', user!['username']),
-                            _buildInfoRow(Icons.badge_outlined, 'Full Name', user!['full_name'] ?? 'N/A'),
+                            _buildInfoRow(Icons.email_outlined, lang.t('Email', 'ای میل'), user!['email'] ?? 'N/A'),
+                            _buildInfoRow(Icons.account_circle_outlined, lang.t('Username', 'صارف نام'), user!['username']),
+                            _buildInfoRow(Icons.badge_outlined, lang.t('Full Name', 'پورا نام'), user!['full_name'] ?? 'N/A'),
                           ],
                         ),
                       ),
+                      if (!isVerified && (user!['email']?.toString().isNotEmpty ?? false)) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _verifyEmail,
+                            icon: const Icon(Icons.mark_email_read_outlined),
+                            label: Text(lang.t('Verify Email', 'ای میل تصدیق کریں')),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child:                         ElevatedButton.icon(
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BuyCreditsScreen())),
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (_) => const BuyCreditsScreen()));
+                            loadUser();
+                          },
                           icon: const Icon(Icons.add_circle_outline),
-                          label: const Text('Buy More Credits'),
+                          label: Text(lang.t('Buy More Credits', 'مزید کریڈٹس خریدیں')),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFF59E0B),
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -141,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: OutlinedButton.icon(
                           onPressed: logout,
                           icon: const Icon(Icons.logout, color: Colors.red),
-                          label: const Text('Logout', style: TextStyle(color: Colors.red)),
+                          label: Text(lang.t('Logout', 'لاگ آؤٹ'), style: const TextStyle(color: Colors.red)),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -177,12 +244,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Icon(icon, size: 20, color: const Color(0xFF64748B)),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-              Text(value, style: const TextStyle(fontSize: 14)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                Text(value, style: const TextStyle(fontSize: 14)),
+              ],
+            ),
           )
         ],
       ),

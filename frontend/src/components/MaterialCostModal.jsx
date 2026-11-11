@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { X, Calculator, Layers, RefreshCw } from 'lucide-react';
 
 export default function MaterialCostModal({ isOpen, onClose, estimate, plot, rooms, onRateChange, onRecalculate, disclaimer }) {
   const [ratePerSqft, setRatePerSqft] = useState(estimate?.rate_per_sqft_pkr || 3200);
-  useEffect(() => { if (estimate?.rate_per_sqft_pkr) setRatePerSqft(estimate.rate_per_sqft_pkr); }, [estimate?.rate_per_sqft_pkr]);
+  const [prevRate, setPrevRate] = useState(estimate?.rate_per_sqft_pkr);
+  if (estimate?.rate_per_sqft_pkr !== prevRate) {
+    setPrevRate(estimate?.rate_per_sqft_pkr);
+    if (estimate?.rate_per_sqft_pkr) setRatePerSqft(estimate.rate_per_sqft_pkr);
+  }
   if (!isOpen || !estimate) return null;
   const coveredArea = estimate.covered_area_sqft || 1800;
   const totalCostPkr = estimate.estimated_cost_pkr || coveredArea * ratePerSqft;

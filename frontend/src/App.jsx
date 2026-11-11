@@ -10,6 +10,7 @@ import ProjectsModal from './components/ProjectsModal';
 import BuyCreditsModal from './components/BuyCreditsModal';
 import {
   calculateMaterialCost,
+  confirmEmailVerification,
   downloadBlueprintDxf,
   downloadBlueprintPdf,
   generateFloorPlan,
@@ -54,9 +55,23 @@ function planPayload({ projectName, plot, rooms, doors, windows, materialEstimat
   };
 }
 
+function readInitialPayment() {
+  const params = new URLSearchParams(window.location.search);
+  const payment = params.get('payment');
+  const txn = params.get('txn');
+  const resetToken = params.get('reset_token') || '';
+  const verifyToken = params.get('verify_token') || '';
+  if (payment === 'cancel') localStorage.removeItem('nakshai_pending_txn');
+  else if (txn) localStorage.setItem('nakshai_pending_txn', txn);
+  const needsAuth = (payment === 'success' || payment === 'pending') && !localStorage.getItem('nakshai_token');
+  return { payment, txn, needsAuth, resetToken, verifyToken };
+}
+
 export default function App() {
   const [user, setUser] = useState(readStoredUser);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [initialPayment] = useState(readInitialPayment);
+  const [isAuthOpen, setIsAuthOpen] = useState(initialPayment.needsAuth || Boolean(initialPayment.resetToken));
+  const [resetToken, setResetToken] = useState(initialPayment.resetToken);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
   const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false);
@@ -94,7 +109,11 @@ export default function App() {
   const [impactSummary, setImpactSummary] = useState(null);
   const [variants, setVariants] = useState([]);
   const [variantCompare, setVariantCompare] = useState([]);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState(() => {
+    if (initialPayment.payment === 'cancel') return 'Payment cancelled.';
+    if (initialPayment.needsAuth) return 'Sign in to confirm your payment.';
+    return '';
+  });
   const [materialEstimate, setMaterialEstimate] = useState({
     covered_area_sqft: 2860,
     open_area_sqft: 140,
@@ -135,18 +154,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const payment = params.get('payment');
-    const txn = params.get('txn');
-    if (!payment && !txn) return;
-    if (txn) localStorage.setItem('nakshai_pending_txn', txn);
-    if (payment === 'cancel') { setStatusMessage('Payment cancelled.'); localStorage.removeItem('nakshai_pending_txn'); }
-    else if (payment === 'success' || payment === 'pending') {
-      if (localStorage.getItem('nakshai_token')) confirmPendingPayment(txn);
-      else { setStatusMessage('Sign in to confirm your payment.'); setIsAuthOpen(true); }
+    const { payment, txn, needsAuth, verifyToken } = initialPayment;
+    if (!payment && !txn && !verifyToken) return;
+    let timer;
+    if (!needsAuth && (payment === 'success' || payment === 'pending') && localStorage.getItem('nakshai_token')) {
+      timer = setTimeout(() => confirmPendingPayment(txn), 0);
+    }
+    if (verifyToken) {
+      confirmEmailVerification(verifyToken)
+        .then(() => setStatusMessage('Email verified successfully.'))
+        .catch((err) => setStatusMessage(err.message || 'Email verification failed.'));
     }
     window.history.replaceState({}, '', window.location.pathname);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [initialPayment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -387,13 +408,13 @@ export default function App() {
         disclaimer={DISCLAIMER}
       />
 
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onLogin={(userData) => {
+      <AuthModal key={isAuthOpen ? `auth-${resetToken || 'login'}` : 'auth-closed'} isOpen={isAuthOpen} onClose={() => { setIsAuthOpen(false); setResetToken(''); }} resetToken={resetToken} onLogin={(userData) => {
         setUser(userData);
         localStorage.setItem('nakshai_user', JSON.stringify(userData));
         const pending = localStorage.getItem('nakshai_pending_txn');
         if (pending) confirmPendingPayment(pending);
       }} lang={lang} />
-      <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} user={user} lang={lang} onBuyCredits={() => { setIsProfileOpen(false); setIsBuyCreditsOpen(true); }} />
+      <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} user={user} lang={lang} onVerified={refreshUser} onBuyCredits={() => { setIsProfileOpen(false); setIsBuyCreditsOpen(true); }} />
       <BuyCreditsModal isOpen={isBuyCreditsOpen} onClose={() => setIsBuyCreditsOpen(false)} lang={lang} onPurchased={(credits) => {
         setUser((prev) => { const next = { ...(prev || {}), credits }; localStorage.setItem('nakshai_user', JSON.stringify(next)); return next; });
         refreshUser();

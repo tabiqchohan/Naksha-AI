@@ -10,11 +10,18 @@ export default function BuyCreditsModal({ isOpen, onClose, onPurchased, lang = '
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
+    if (isOpen) {
+      setResult(null);
+      setError('');
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) return;
-    setResult(null);
-    setError('');
     getPricing()
       .then((d) => {
         const list = Object.entries(d?.packs || {}).map(([credits, p]) => ({ credits: Number(credits), ...p })).sort((a, b) => a.credits - b.credits);
