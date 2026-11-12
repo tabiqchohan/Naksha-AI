@@ -8,6 +8,8 @@ import AuthModal from './components/AuthModal';
 import ProfileModal from './components/ProfileModal';
 import ProjectsModal from './components/ProjectsModal';
 import BuyCreditsModal from './components/BuyCreditsModal';
+import PrivacyPolicyModal from './components/PrivacyPolicyModal';
+import TermsModal from './components/TermsModal';
 import {
   calculateMaterialCost,
   confirmEmailVerification,
@@ -75,6 +77,8 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
   const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [lang, setLang] = useState(localStorage.getItem('nakshai_lang') || 'en');
   const [projectName, setProjectName] = useState('MODERN HOME');
   const [prompt, setPrompt] = useState('Generate 3 Bed, 2 Bath open layout for 50x40 plot.');
@@ -420,6 +424,16 @@ export default function App() {
         refreshUser();
       }} />
       <ProjectsModal isOpen={isProjectsOpen} onClose={() => setIsProjectsOpen(false)} user={user} lang={lang} onLoadProject={handleLoadProject} listProjects={listProjects} getProject={getProject} />
+      <PrivacyPolicyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
+      <TermsModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
+
+      <footer className="bg-white border-t border-slate-200 py-1.5 px-4 text-center text-xs text-slate-500 flex justify-between items-center z-30">
+        <div>© 2026 NakshaAI. All rights reserved. AI Architecture Generator.</div>
+        <div className="flex gap-4">
+          <button onClick={() => setIsPrivacyOpen(true)} className="hover:text-blue-600 transition">Privacy Policy</button>
+          <button onClick={() => setIsTermsOpen(true)} className="hover:text-blue-600 transition">Terms of Service</button>
+        </div>
+      </footer>
     </div>
   );
 }
