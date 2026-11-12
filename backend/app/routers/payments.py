@@ -194,3 +194,15 @@ def payment_history(current_user: User = Depends(get_current_active_user), db: S
         "id": t.id, "transaction_id": t.transaction_id, "amount_pkr": t.amount_pkr, "amount_usd": t.amount_usd,
         "credits_purchased": t.credits_purchased, "payment_method": t.payment_method, "status": t.status, "created_at": t.created_at
     } for t in transactions]}
+
+
+@router.get("/suppliers/marketplace")
+def get_supplier_marketplace():
+    return {
+        "suppliers": [
+            {"id": "s1", "name": "Best Bricks & Blocks Co.", "item": "A-Grade Bricks", "price_pkr": 14.5, "unit": "per piece", "location": "Lahore / Islamabad"},
+            {"id": "s2", "name": "Pak Arab Cement Ltd", "item": "OPC Cement (50kg bag)", "price_pkr": 1450, "unit": "per bag", "location": "Nationwide"},
+            {"id": "s3", "name": "Mughal & Amreli Steel", "item": "Grade 60 Deformed Bars", "price_pkr": 265000, "unit": "per ton", "location": "Karachi / Lahore"},
+            {"id": "s4", "name": "Chenab Sand & Aggregate", "item": "Chenab Sand", "price_pkr": 45, "unit": "per cft", "location": "Punjab"},
+        ]
+    }

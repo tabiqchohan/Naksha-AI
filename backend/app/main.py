@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import engine, get_db
 from app.models import project_models, user_models
-from app.routers import auth, payments, plans, projects
+from app.routers import auth, payments, plans, projects, collaboration
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +127,7 @@ app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(payments.router, prefix=settings.API_V1_STR)
 app.include_router(plans.router, prefix=settings.API_V1_STR)
 app.include_router(projects.router, prefix=settings.API_V1_STR)
+app.include_router(collaboration.router)
 
 
 @app.get("/")
