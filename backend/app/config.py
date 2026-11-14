@@ -35,12 +35,20 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
+        origins = [
+            "https://naksha-ai.vercel.app",
+            "https://naksha-ai-xyz.vercel.app",
+            "http://localhost:3000",
+            "http://localhost:5173",
+        ]
         raw = (self.BACKEND_CORS_ORIGINS or "").strip()
         if raw:
-            return [origin.strip() for origin in raw.split(",") if origin.strip()]
-        if self.ENVIRONMENT.lower() == "production":
-            return [self.FRONTEND_URL.rstrip("/")]
-        return ["*"]
+            for origin in raw.split(","):
+                if origin.strip():
+                    origins.append(origin.strip())
+        if self.FRONTEND_URL:
+            origins.append(self.FRONTEND_URL.rstrip("/"))
+        return list(set(origins))
 
     @property
     def is_production(self) -> bool:

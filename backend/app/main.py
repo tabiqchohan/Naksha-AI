@@ -63,7 +63,8 @@ async def security_headers_and_rate_limit(request: Request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials="*" not in settings.cors_origins,
+    allow_origin_regex=r"https://(.*\.)?vercel\.app",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
