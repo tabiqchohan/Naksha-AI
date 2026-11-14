@@ -52,11 +52,12 @@ def _enrich_plan(plan: FloorPlan, bylaws_pack: Optional[str] = None) -> FloorPla
 
 
 @router.post("/generate", response_model=FloorPlan)
-async def generate_plan(request: GeneratePlanRequest, db: Session = Depends(get_db), current_user: User = Depends(check_credits)):
+async def generate_plan(request: GeneratePlanRequest, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)):
     try:
         plan = await AIEngine.generate_floor_plan(request)
         _enrich_plan(plan, getattr(request, "bylaws_pack", None))
-        deduct_credit(current_user, db)
+        if current_user:
+            deduct_credit(current_user, db)
         return plan
     except HTTPException:
         raise
@@ -65,7 +66,7 @@ async def generate_plan(request: GeneratePlanRequest, db: Session = Depends(get_
 
 
 @router.post("/generate-variants")
-async def generate_variants(req: VariantsRequest, db: Session = Depends(get_db), current_user: User = Depends(check_credits)):
+async def generate_variants(req: VariantsRequest, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)):
     count = max(1, min(req.count or 3, 3))
     styles = ["modern", "minimalist", "classical"]
     variants = []
@@ -76,7 +77,8 @@ async def generate_variants(req: VariantsRequest, db: Session = Depends(get_db),
         plan.title = f"{plan.title} - Option {chr(65+i)}"
         _enrich_plan(plan, getattr(base, "bylaws_pack", None))
         variants.append(plan.model_dump())
-    deduct_credit(current_user, db)
+    if current_user:
+        deduct_credit(current_user, db)
     return {"variants": variants, "compare": DesignAdvisor.compare_variants(variants)}
 
 
