@@ -13,6 +13,7 @@ os.environ["GROQ_API_KEY"] = ""
 os.environ["RATE_LIMIT_AUTH_PER_MINUTE"] = "1000"
 os.environ["AUTH_DEBUG_TOKENS"] = "true"
 os.environ["ALLOW_MANUAL_PAYMENT_VERIFY"] = "true"
+os.environ["SUBSCRIPTIONS_ENABLED"] = "true"
 os.environ["ENVIRONMENT"] = "test"
 
 import pytest

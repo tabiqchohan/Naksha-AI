@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import settings
 from app.database import Base
-from app.models import project_models, user_models  # noqa: F401
+from app.models import project_models, user_models, monetization_models  # noqa: F401
 
 config = context.config
 database_url = settings.DATABASE_URL

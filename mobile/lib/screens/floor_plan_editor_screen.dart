@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/floor_plan_model.dart';
+import '../models/cbm_model.dart';
 import '../widgets/floor_plan_painter.dart';
 import '../services/api_service.dart';
 import '../services/language_service.dart';
 import '../login_screen.dart';
 import '../material_estimate_screen.dart';
 import 'viewer3d_screen.dart';
+import 'architectural_drawings_screen.dart';
 
 class FloorPlanEditorScreen extends StatefulWidget {
   final Map<String, dynamic>? initialPlan;
@@ -43,6 +45,109 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
   void initState() {
     super.initState();
     _loadInitial();
+  }
+
+  int _cbmRequestSequence = 0;
+  bool _isSyncingCbm = false;
+
+  CanonicalBuildingModelData toCbm({String projectId = 'proj_mobile', String title = 'Concept Plan'}) {
+    final site = CbmSite(plotWidth: _plot.width, plotLength: _plot.length, unit: _plot.unit);
+    final levels = [CbmBuildingLevel(levelId: 'lvl_0', index: 0, name: 'Ground Floor')];
+    final roomPolygons = _rooms.map((r) => CbmRoomPolygon(
+      id: r.id,
+      levelId: 'lvl_0',
+      name: r.name,
+      roomType: r.type,
+      polygon: [[r.x, r.y], [r.x + r.width, r.y], [r.x + r.width, r.y + r.length], [r.x, r.y + r.length]],
+      areaSqft: r.sqft,
+    )).toList();
+
+    return CanonicalBuildingModelData(
+      projectId: projectId,
+      title: title,
+      site: site,
+      levels: levels,
+      walls: [],
+      rooms: roomPolygons,
+      materialEstimate: _materialEstimate,
+    );
+  }
+
+  void _applyCanonicalCbm(Map<String, dynamic> cbmMap) {
+    try {
+      final cbm = CanonicalBuildingModelData.fromJson(cbmMap);
+      setState(() {
+        _plot.width = cbm.site.plotWidth;
+        _plot.length = cbm.site.plotLength;
+        _rooms.clear();
+        for (final rp in cbm.rooms) {
+          double minX = double.infinity, minY = double.infinity;
+          double maxX = double.negativeInfinity, maxY = double.negativeInfinity;
+          for (final pt in rp.polygon) {
+            if (pt.length >= 2) {
+              minX = minX < pt[0] ? minX : pt[0];
+              minY = minY < pt[1] ? minY : pt[1];
+              maxX = maxX > pt[0] ? maxX : pt[0];
+              maxY = maxY > pt[1] ? maxY : pt[1];
+            }
+          }
+          final x = minX.isFinite ? minX : 0.0;
+          final y = minY.isFinite ? minY : 0.0;
+          final w = (maxX - minX).isFinite ? (maxX - minX) : 10.0;
+          final l = (maxY - minY).isFinite ? (maxY - minY) : 10.0;
+
+          _rooms.add(RoomModel(
+            id: rp.id,
+            name: rp.name,
+            type: rp.roomType,
+            x: x,
+            y: y,
+            width: w > 0 ? w : 10,
+            length: l > 0 ? l : 10,
+            color: _colorFor(rp.roomType),
+          ));
+        }
+        if (cbm.materialEstimate != null) {
+          _materialEstimate = cbm.materialEstimate;
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _syncWithBackendCbm() async {
+    final lang = LanguageScope.of(context);
+    if (!await _ensureAuth()) return;
+    final seq = ++_cbmRequestSequence;
+    setState(() { _isSyncingCbm = true; _status = lang.t('Synchronizing CBM with backend...', 'بیہائنڈ CBM مطابقت پذیر ہو رہا ہے...'); });
+    try {
+      final cbm = toCbm();
+      final res = await ApiService.cbmUpdate(cbm.toJson());
+      if (seq != _cbmRequestSequence) return; // Stale response protection
+      if (res is Map) {
+        final warnings = res['warnings'];
+        final canonicalCbm = res['cbm'];
+        if (canonicalCbm is Map) {
+          _applyCanonicalCbm(Map<String, dynamic>.from(canonicalCbm));
+        }
+        if (res['material_estimate'] is Map) {
+          _materialEstimate = Map<String, dynamic>.from(res['material_estimate']);
+        }
+        if (warnings is List && warnings.isNotEmpty) {
+          _status = lang.t('CBM synchronized with warnings: ${warnings.length}', 'CBM وارننگ کے ساتھ مطابقت پذیر ہو گیا: ${warnings.length}');
+        } else {
+          _status = lang.t('CBM successfully synchronized and confirmed.', 'CBM کامیابی سے مطابقت پذیر ہو گیا۔');
+        }
+      }
+    } catch (e) {
+      if (seq == _cbmRequestSequence) {
+        _status = '${lang.t('CBM sync failed', 'CBM مطابقت ناکام')}: $e';
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted && seq == _cbmRequestSequence) {
+        setState(() => _isSyncingCbm = false);
+      }
+    }
   }
 
   void _loadInitial() {
@@ -199,6 +304,13 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
               PopupMenuItem(value: 'dxf', child: Text(lang.t('Export DXF', 'ڈی ایکس ایف ایکسپورٹ'))),
             ],
           ),
+          IconButton(
+            icon: _isSyncingCbm
+              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.sync, color: Colors.white, size: 18),
+            tooltip: lang.t('Sync CBM & Backend', 'CBM اور بیہائنڈ مطابقت پذیر کریں'),
+            onPressed: _isSyncingCbm ? null : _syncWithBackendCbm,
+          ),
           IconButton(icon: const Icon(Icons.save, color: Colors.white, size: 18), onPressed: _saveProject),
         ],
       ),
@@ -222,6 +334,7 @@ class _FloorPlanEditorScreenState extends State<FloorPlanEditorScreen> {
             IconButton(icon: const Icon(Icons.stairs, color: Colors.grey, size: 22), tooltip: lang.t('Floors', 'منزلیں'), onPressed: _showFloorsDialog),
             IconButton(icon: const Icon(Icons.gavel, color: Colors.grey, size: 22), tooltip: lang.t('Bylaws Pack', 'بلدیاتی پیک'), onPressed: _showBylawsDialog),
             IconButton(icon: const Icon(Icons.calculate, color: Colors.teal, size: 22), tooltip: lang.t('Material Estimate (Concept)', 'میٹیریل تخمینہ (تصور)'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MaterialEstimateScreen(estimate: _materialEstimate)))),
+            IconButton(icon: const Icon(Icons.architecture, color: Colors.indigo, size: 22), tooltip: lang.t('Architectural Drawings (A-01..A-04)', 'تعمیراتی نقشے (A-01..A-04)'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ArchitecturalDrawingsScreen(plan: _currentPlanMap())))),
             if (_isGenerating) const Padding(padding: EdgeInsets.all(8), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
             const Spacer(),
             if (_bylawsReport != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Icon(bylawsPass ? Icons.verified : Icons.warning_amber, color: bylawsPass ? Colors.green : Colors.orange, size: 20)),

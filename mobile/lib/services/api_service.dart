@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
   static const String baseUrl = String.fromEnvironment(
@@ -8,9 +9,35 @@ class ApiService {
     defaultValue: 'https://naksha-ai-usaz.onrender.com/api/v1',
   );
 
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static const String _secureTokenKey = 'nakshai_secure_token';
+
+  // Getter for token with secure storage and safe legacy SharedPreferences migration
   static Future<String?> token() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token') ?? prefs.getString('nakshai_token');
+    try {
+      final secureT = await _secureStorage.read(key: _secureTokenKey);
+      if (secureT != null && secureT.isNotEmpty) {
+        return secureT;
+      }
+
+      // Fallback and migrate from legacy SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final legacyT = prefs.getString('token') ?? prefs.getString('nakshai_token');
+      if (legacyT != null && legacyT.isNotEmpty) {
+        await _secureStorage.write(key: _secureTokenKey, value: legacyT);
+        final verified = await _secureStorage.read(key: _secureTokenKey);
+        if (verified == legacyT) {
+          await prefs.remove('token');
+          await prefs.remove('nakshai_token');
+        }
+        return legacyT;
+      }
+      return null;
+    } catch (_) {
+      // Fallback to legacy if secure storage throws platform error
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('token') ?? prefs.getString('nakshai_token');
+    }
   }
 
   static Future<String?> getToken() => token();
@@ -33,6 +60,9 @@ class ApiService {
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: {'username': username, 'password': password},
     );
+    if (res.statusCode == 401) {
+      await logout();
+    }
     if (res.statusCode < 200 || res.statusCode >= 300) throw _error(res);
     final data = _decode(res);
     final map = Map<String, dynamic>.from(data as Map);
@@ -82,6 +112,9 @@ class ApiService {
   }
 
   static Exception _error(http.Response res) {
+    if (res.statusCode == 401) {
+      logout();
+    }
     final data = _decode(res);
     final msg = data is Map ? (data['detail'] ?? data['message'] ?? 'Request failed (${res.statusCode})') : 'Request failed (${res.statusCode})';
     return Exception(msg.toString());
@@ -89,32 +122,76 @@ class ApiService {
 
   static Future<dynamic> get(String path, {bool auth = false}) async {
     final res = await http.get(Uri.parse('$baseUrl$path'), headers: await headers(json: false, auth: auth));
+    if (res.statusCode == 401) {
+      await logout();
+    }
     if (res.statusCode < 200 || res.statusCode >= 300) throw _error(res);
     return _decode(res);
   }
 
   static Future<dynamic> post(String path, dynamic body, {bool auth = false}) async {
     final res = await http.post(Uri.parse('$baseUrl$path'), headers: await headers(auth: auth), body: jsonEncode(body));
+    if (res.statusCode == 401) {
+      await logout();
+    }
     if (res.statusCode < 200 || res.statusCode >= 300) throw _error(res);
     return _decode(res);
   }
 
   static Future<List<int>> postBytes(String path, dynamic body, {bool auth = false}) async {
     final res = await http.post(Uri.parse('$baseUrl$path'), headers: await headers(auth: auth), body: jsonEncode(body));
+    if (res.statusCode == 401) {
+      await logout();
+    }
     if (res.statusCode < 200 || res.statusCode >= 300) throw _error(res);
     return res.bodyBytes;
   }
 
   static Future<dynamic> delete(String path, {bool auth = true}) async {
     final res = await http.delete(Uri.parse('$baseUrl$path'), headers: await headers(json: false, auth: auth));
+    if (res.statusCode == 401) {
+      await logout();
+    }
     if (res.statusCode < 200 || res.statusCode >= 300) throw _error(res);
     return _decode(res);
   }
 
+  // CBM API Integration Helpers
+  static Future<dynamic> cbmUpdate(Map<String, dynamic> cbm) async {
+    return post('/plans/cbm-update', cbm, auth: true);
+  }
+
+  static Future<dynamic> cbmBoq(Map<String, dynamic> cbm) async {
+    return post('/plans/cbm-boq', cbm, auth: true);
+  }
+
+  static Future<dynamic> cbmDrawings(Map<String, dynamic> plan) async {
+    return post('/plans/cbm-drawings', plan, auth: true);
+  }
+
+  static Future<List<int>> cbmExportPdf(Map<String, dynamic> plan) async {
+    return postBytes('/plans/cbm-export-pdf', plan, auth: true);
+  }
+
+  static Future<List<int>> cbmExportDxf(Map<String, dynamic> plan) async {
+    return postBytes('/plans/cbm-export-dxf', plan, auth: true);
+  }
+
+  static Future<dynamic> cbmCompliance(Map<String, dynamic> cbm, {String packId = 'pakistan_generic'}) async {
+    return post('/plans/cbm-compliance', {'cbm': cbm, 'pack_id': packId}, auth: true);
+  }
+
   static Future<void> saveSession(String token, Map<String, dynamic> user) async {
+    if (token.isNotEmpty) {
+      try {
+        await _secureStorage.write(key: _secureTokenKey, value: token);
+      } catch (_) {}
+    }
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', token);
     await prefs.setString('user', jsonEncode(user));
+    // Clear legacy plaintext tokens
+    await prefs.remove('token');
+    await prefs.remove('nakshai_token');
   }
 
   static Future<Map<String, dynamic>?> currentUser() async {
@@ -125,6 +202,9 @@ class ApiService {
   }
 
   static Future<void> logout() async {
+    try {
+      await _secureStorage.delete(key: _secureTokenKey);
+    } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('nakshai_token');

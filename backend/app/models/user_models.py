@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Enum, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -28,6 +28,7 @@ class User(Base):
     total_generations = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)
     reset_token_hash = Column(String, nullable=True)
     reset_token_expires = Column(DateTime(timezone=True), nullable=True)
     verification_token_hash = Column(String, nullable=True)
@@ -43,8 +44,8 @@ class Transaction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True, nullable=False)
-    amount_pkr = Column(Float, nullable=False)
-    amount_usd = Column(Float, default=0.0)
+    amount_pkr = Column(Numeric(12, 2), nullable=False)
+    amount_usd = Column(Numeric(12, 2), default=0.0)
     credits_purchased = Column(Integer, nullable=False)
     payment_method = Column(String)  # jazzcash, easypaisa, stripe, dev
     transaction_id = Column(String, unique=True, index=True)

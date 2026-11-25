@@ -9,8 +9,13 @@ from app.services.geometry_validator import GeometryValidator
 from app.services.export_service import ExportService
 from app.services.bylaws_engine import BylawsEngine
 from app.services.design_advisor import DesignAdvisor
-from app.auth.dependencies import check_credits, deduct_credit, get_optional_user
+from app.models.cbm_schemas import CanonicalBuildingModel
+from app.services.cbm_adapter import CBMAdapter
+from app.services.architectural_drawing_service import ArchitecturalDrawingService
+from app.services.boq_service import BOQService
+from app.auth.dependencies import check_credits, deduct_credit, get_optional_user, get_current_active_user
 from app.database import get_db
+from app.models.project_models import Project
 from app.models.user_models import User
 
 router = APIRouter(prefix="/plans", tags=["Floor Plans"])
@@ -52,12 +57,11 @@ def _enrich_plan(plan: FloorPlan, bylaws_pack: Optional[str] = None) -> FloorPla
 
 
 @router.post("/generate", response_model=FloorPlan)
-async def generate_plan(request: GeneratePlanRequest, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)):
+async def generate_plan(request: GeneratePlanRequest, db: Session = Depends(get_db), current_user: User = Depends(check_credits)):
     try:
         plan = await AIEngine.generate_floor_plan(request)
         _enrich_plan(plan, getattr(request, "bylaws_pack", None))
-        if current_user:
-            deduct_credit(current_user, db)
+        deduct_credit(current_user, db)
         return plan
     except HTTPException:
         raise
@@ -66,7 +70,7 @@ async def generate_plan(request: GeneratePlanRequest, db: Session = Depends(get_
 
 
 @router.post("/generate-variants")
-async def generate_variants(req: VariantsRequest, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)):
+async def generate_variants(req: VariantsRequest, db: Session = Depends(get_db), current_user: User = Depends(check_credits)):
     count = max(1, min(req.count or 3, 3))
     styles = ["modern", "minimalist", "classical"]
     variants = []
@@ -77,8 +81,7 @@ async def generate_variants(req: VariantsRequest, db: Session = Depends(get_db),
         plan.title = f"{plan.title} - Option {chr(65+i)}"
         _enrich_plan(plan, getattr(base, "bylaws_pack", None))
         variants.append(plan.model_dump())
-    if current_user:
-        deduct_credit(current_user, db)
+    deduct_credit(current_user, db)
     return {"variants": variants, "compare": DesignAdvisor.compare_variants(variants)}
 
 
@@ -161,6 +164,136 @@ async def export_blueprint_dxf(plan: FloorPlan, bylaws_pack: Optional[str] = Non
         return Response(content=dxf_bytes, media_type="application/dxf", headers={"Content-Disposition": f"attachment; filename=nakshai_{plan.id}.dxf"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DXF generation failed: {str(e)}")
+
+
+@router.post("/cbm-drawings")
+async def get_cbm_drawings(plan: FloorPlan, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    try:
+        # Optional DB ownership check if plan.id corresponds to a saved project
+        project = db.query(Project).filter(Project.project_id == plan.id).first()
+        if project and project.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden: unauthorized project access")
+
+        cbm = CBMAdapter.to_cbm(plan)
+        errors = CBMAdapter.validate_cbm(cbm)
+        if errors:
+            return {"status": "warning", "warnings": errors, "drawings": ArchitecturalDrawingService.generate_drawings_payload(cbm)}
+        return {"status": "success", "drawings": ArchitecturalDrawingService.generate_drawings_payload(cbm)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CBM drawings generation failed: {str(e)}")
+
+
+@router.post("/cbm-export-pdf")
+async def export_cbm_pdf(plan: FloorPlan, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    try:
+        project = db.query(Project).filter(Project.project_id == plan.id).first()
+        if project and project.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden: unauthorized project access")
+
+        cbm = CBMAdapter.to_cbm(plan)
+        errors = CBMAdapter.validate_cbm(cbm)
+        if errors and any("non-existent" in err for err in errors):
+            raise HTTPException(status_code=400, detail=f"Invalid CBM payload: {errors}")
+
+        is_paid = bool(getattr(current_user, 'plan_type', None) and str(getattr(current_user.plan_type, 'value', current_user.plan_type)) in ['pro','enterprise'])
+        pdf_bytes = ArchitecturalDrawingService.generate_architectural_pdf(cbm, add_watermark=not is_paid)
+        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=nakshai_architectural_{plan.id}.pdf"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CBM PDF export failed: {str(e)}")
+
+
+@router.post("/cbm-export-dxf")
+async def export_cbm_dxf(plan: FloorPlan, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    try:
+        project = db.query(Project).filter(Project.project_id == plan.id).first()
+        if project and project.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden: unauthorized project access")
+
+        cbm = CBMAdapter.to_cbm(plan)
+        errors = CBMAdapter.validate_cbm(cbm)
+        if errors and any("non-existent" in err for err in errors):
+            raise HTTPException(status_code=400, detail=f"Invalid CBM payload: {errors}")
+
+        is_paid = bool(getattr(current_user, 'plan_type', None) and str(getattr(current_user.plan_type, 'value', current_user.plan_type)) in ['pro','enterprise'])
+        dxf_bytes = ArchitecturalDrawingService.generate_dxf(cbm, add_watermark=not is_paid)
+        return Response(content=dxf_bytes, media_type="application/dxf", headers={"Content-Disposition": f"attachment; filename=nakshai_architectural_{plan.id}.dxf"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CBM DXF export failed: {str(e)}")
+
+
+@router.post("/cbm-update")
+async def update_cbm(cbm: CanonicalBuildingModel, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    try:
+        # Optional project check
+        project = db.query(Project).filter(Project.project_id == cbm.project_id).first()
+        if project and project.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden: unauthorized project access")
+
+        errors = CBMAdapter.validate_cbm(cbm)
+        floor_plan = CBMAdapter.from_cbm(cbm)
+        estimate = MaterialEstimator.calculate_estimate(floor_plan.plot, floor_plan.rooms)
+
+        return {
+            "status": "warning" if errors else "success",
+            "warnings": errors,
+            "cbm": cbm.dict(),
+            "floor_plan": floor_plan.dict(),
+            "material_estimate": estimate.dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CBM update synchronization failed: {str(e)}")
+
+
+@router.post("/cbm-boq")
+async def generate_cbm_boq(cbm: CanonicalBuildingModel, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    try:
+        project = db.query(Project).filter(Project.project_id == cbm.project_id).first()
+        if project and project.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden: unauthorized project access")
+
+        boq = BOQService.generate_boq(cbm)
+        return {"status": "success", "boq": boq}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CBM BOQ generation failed: {str(e)}")
+
+
+@router.post("/cbm-compliance")
+async def evaluate_cbm_compliance(payload: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    try:
+        cbm_data = payload.get("cbm")
+        pack_id = payload.get("pack_id", "pakistan_generic")
+        if not cbm_data:
+            raise HTTPException(status_code=400, detail="Missing cbm payload")
+
+        cbm = CanonicalBuildingModel(**cbm_data)
+        project = db.query(Project).filter(Project.project_id == cbm.project_id).first()
+        if project and project.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden: unauthorized project access")
+
+        report = BylawsEngine.evaluate_cbm(cbm, pack_id)
+        return {"status": "success", "compliance_report": report}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CBM compliance evaluation failed: {str(e)}")
+
+
+@router.get("/bylaws/packs")
+async def get_bylaws_packs():
+    return {"status": "success", "packs": BylawsEngine.packs()}
+
+
+
 
 
 @router.get("/presets")

@@ -10,8 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import engine, get_db
-from app.models import project_models, user_models
-from app.routers import auth, payments, plans, projects, collaboration
+from app.models import project_models, user_models, monetization_models
+from app.models.monetization_models import PlanCatalog
+from decimal import Decimal
+from app.routers import auth, payments, plans, projects, collaboration, admin
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +99,7 @@ def _ensure_user_columns():
             "verification_token_hash": "VARCHAR",
             "verification_token_expires": "TIMESTAMP",
             "is_verified": "BOOLEAN DEFAULT FALSE",
+            "is_admin": "BOOLEAN DEFAULT FALSE",
         }
         with engine.begin() as conn:
             for name, ddl in additions.items():
@@ -115,11 +118,32 @@ def _check_production_secrets():
         logger.warning("BACKEND_CORS_ORIGINS is not set; using FRONTEND_URL for CORS.")
 
 
+def _ensure_plan_catalog():
+    try:
+        with Session(engine) as session:
+            existing = session.query(PlanCatalog).first()
+            if not existing:
+                plans = [
+                    PlanCatalog(slug="free", name="Free", price_pkr=Decimal("0.00"), price_usd=Decimal("0.00"), credits_monthly=10),
+                    PlanCatalog(slug="starter", name="Starter", price_pkr=Decimal("1499.00"), price_usd=Decimal("7.00"), credits_monthly=80),
+                    PlanCatalog(slug="pro", name="Pro", price_pkr=Decimal("4499.00"), price_usd=Decimal("19.00"), credits_monthly=300),
+                    PlanCatalog(slug="architect", name="Architect", price_pkr=Decimal("11999.00"), price_usd=Decimal("49.00"), credits_monthly=1000),
+                    PlanCatalog(slug="studio", name="Studio", price_pkr=Decimal("29999.00"), price_usd=Decimal("129.00"), credits_monthly=3000),
+                ]
+                for p in plans:
+                    session.add(p)
+                session.commit()
+    except Exception:
+        pass
+
+
 try:
     user_models.Base.metadata.create_all(bind=engine)
     project_models.Base.metadata.create_all(bind=engine)
+    monetization_models.Base.metadata.create_all(bind=engine)
     _ensure_transaction_columns()
     _ensure_user_columns()
+    _ensure_plan_catalog()
 except Exception:
     logger.exception("Database initialization failed")
 _check_production_secrets()
@@ -128,6 +152,7 @@ app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(payments.router, prefix=settings.API_V1_STR)
 app.include_router(plans.router, prefix=settings.API_V1_STR)
 app.include_router(projects.router, prefix=settings.API_V1_STR)
+app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(collaboration.router)
 
 

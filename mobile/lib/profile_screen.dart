@@ -3,6 +3,7 @@ import 'services/api_service.dart';
 import 'services/language_service.dart';
 import 'login_screen.dart';
 import 'buy_credits_screen.dart';
+import 'screens/subscription_wallet_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -197,6 +198,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: Text(lang.t('Buy More Credits', 'مزید کریڈٹس خریدیں')),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFF59E0B),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionWalletScreen()));
+                            loadUser();
+                          },
+                          icon: const Icon(Icons.subscriptions_outlined),
+                          label: Text(lang.t('Subscriptions & Wallet', 'سبسکرپشن اور والٹ')),
+                          style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),

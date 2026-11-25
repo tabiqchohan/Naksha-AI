@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     STRIPE_PUBLISHABLE_KEY: Optional[str] = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
     JAZZCASH_MERCHANT_ID: Optional[str] = os.getenv("JAZZCASH_MERCHANT_ID", "")
     EASYPAISA_MERCHANT_ID: Optional[str] = os.getenv("EASYPAISA_MERCHANT_ID") or os.getenv("EASYPAYSA_MERCHANT_ID", "")
+    SUBSCRIPTIONS_ENABLED: bool = os.getenv("SUBSCRIPTIONS_ENABLED", "false").lower() == "true"
 
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./nakshai.db")

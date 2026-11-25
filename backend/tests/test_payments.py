@@ -70,3 +70,22 @@ def test_invalid_credit_pack(client, user):
         headers=user["headers"],
     )
     assert response.status_code == 400
+
+
+def test_subscriptions_disabled_during_closed_testing(client, user, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "SUBSCRIPTIONS_ENABLED", False)
+    res = client.post(
+        "/api/v1/payments/purchase",
+        json={"credits": 10, "payment_method": "dev"},
+        headers=user["headers"],
+    )
+    assert res.status_code == 403
+
+    chk = client.post(
+        "/api/v1/payments/subscription/checkout",
+        json={"plan_slug": "pro"},
+        headers=user["headers"],
+    )
+    assert chk.status_code == 403
+

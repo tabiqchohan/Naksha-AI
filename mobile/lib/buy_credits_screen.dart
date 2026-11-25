@@ -57,38 +57,16 @@ class _BuyCreditsScreenState extends State<BuyCreditsScreen> {
 
   Future<void> _buy(Map p) async {
     final lang = LanguageScope.of(context);
-    if (!await _ensureAuth()) return;
-    final credits = p['credits'] as int;
-    setState(() {
-      buyingId = '$credits';
-      status = '';
-    });
-    try {
-      final res = await ApiService.post('/payments/purchase', {'credits': credits, 'payment_method': method}, auth: true);
-      final txn = res['transaction_id']?.toString();
-      final url = res['payment_url']?.toString();
-      final msg = res['message']?.toString() ?? lang.t('Payment initiated', 'ادائیگی شروع ہو گئی');
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(lang.t('Payment Created', 'ادائیگی بن گئی')),
-          content: Text(
-            '$msg\n\n${lang.t('Transaction', 'ٹرانزیکشن')}: ${txn ?? '-'}\n${url != null && url.isNotEmpty ? '${lang.t('Payment URL', 'ادائیگی لنک')}: $url' : ''}\n\n${lang.t('For JazzCash/Easypaisa/Stripe, credits are applied after gateway confirmation/webhook in production. Dev/manual verify is backend-gated.', 'جاز کیش/ایزی پیسہ/اسٹرائپ کے لیے، کریڈٹس پروڈکشن میں گیٹ وے کی تصدیق/ویب ہک کے بعد شامل ہوتے ہیں۔ ڈیو/مینوئل تصدیق بیک اینڈ سے مشروط ہے۔')}',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(lang.t('Close', 'بند کریں'))),
-            TextButton(onPressed: txn == null ? null : () async { Navigator.pop(context); await _verify(txn); }, child: Text(lang.t('Verify', 'تصدیق کریں'))),
-          ],
-        ),
-      );
-      setState(() => status = msg);
-    } catch (e) {
-      setState(() => status = e.toString());
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${lang.t('Error', 'خرابی')}: $e')));
-    } finally {
-      if (mounted) setState(() => buyingId = null);
-    }
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(lang.t('Temporarily Unavailable', 'عارضی طور پر دستیاب نہیں')),
+        content: Text(lang.t('Subscriptions and credit purchases are temporarily disabled during Google Play Closed Testing.', 'گوگل پلے کلوزڈ ٹیسٹنگ کے دوران سبسکرپشنز اور کریڈٹس کی خریداری عارضی طور پر معطل ہے۔')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(lang.t('OK', 'ٹھیک ہے'))),
+        ],
+      ),
+    );
   }
 
   Future<void> _verify(String txn) async {
