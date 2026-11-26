@@ -76,3 +76,12 @@ def test_recalculate_and_validate(client, user, plan_factory):
     validated = client.post("/api/v1/plans/validate-layout", json=plan, headers=user["headers"])
     assert validated.status_code == 200
     assert validated.json()["rooms"]
+
+
+def test_plan_generation_with_subscriptions_disabled(client, user, plan_factory, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "SUBSCRIPTIONS_ENABLED", False)
+    for _ in range(5):
+        res = plan_factory(user["headers"])
+        assert res.status_code == 200
+

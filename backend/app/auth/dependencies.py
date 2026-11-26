@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user_models import User, plan_value
 from app.auth.auth_utils import verify_token
+from app.config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
@@ -41,6 +42,8 @@ def get_optional_user(token: str = Depends(oauth2_scheme_optional), db: Session 
 
 def check_credits(current_user: User = Depends(get_current_active_user)):
     if plan_value(current_user.plan_type) in ["pro", "enterprise"]:
+        return current_user
+    if not settings.SUBSCRIPTIONS_ENABLED:
         return current_user
     if (current_user.credits or 0) <= 0:
         raise HTTPException(
